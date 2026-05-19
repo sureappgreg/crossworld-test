@@ -388,6 +388,12 @@ function avatar(player, size = "") {
 
 function icon(name) {
   const icons = {
+    back: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+    pause: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4v16"/><path d="M14 4v16"/></svg>',
+    help: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.3 2.3 0 0 1 4.4 1c0 1.7-2.2 2-2.2 3.6"/><path d="M12 17h.01"/></svg>',
+    print: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5"/><path d="M7 17H5a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-2"/><path d="M7 14h10v6H7z"/></svg>',
+    settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8 1.6 1.6 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.4 1Z"/></svg>',
+    grid: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h6v6h-6z"/></svg>',
     users: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     chat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
     chevronUp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>',
@@ -500,20 +506,20 @@ function renderGame() {
   app.innerHTML = `
     <main class="app-shell">
       <header class="topbar">
-        <div class="brand"><span class="logo-mark"></span> CrossWorld</div>
+        <button class="back-button" id="back-button" type="button" aria-label="Back">${icon("back")}<span>Back</span></button>
         <div class="game-title">
-          <div>
-            <strong>${escapeHtml(room.puzzle.title)}</strong>
-            <div class="status">Elapsed</div>
-          </div>
           <div id="timer" class="timer">${duration(room.startedAt, room.completedAt)}</div>
+          <button class="pause-button" type="button" aria-label="Pause">${icon("pause")}</button>
         </div>
         <div class="toolbar">
           <div class="mobile-actions">
             <button class="icon-button" id="toggle-sidebar" title="Players" aria-label="Players">${icon("users")}</button>
             <button class="icon-button ${state.unreadChat ? "has-unread" : ""}" id="toggle-chat-mobile" title="Chat" aria-label="Chat">${icon("chat")}${state.unreadChat ? '<span class="unread-dot"></span>' : ""}</button>
           </div>
-          <button class="ghost" id="exit-lobby">Exit Lobby</button>
+          <button class="icon-button desktop-tool" type="button" title="Help" aria-label="Help">${icon("help")}</button>
+          <button class="icon-button desktop-tool" type="button" title="Print" aria-label="Print">${icon("print")}</button>
+          <button class="icon-button desktop-tool" type="button" title="Settings" aria-label="Settings">${icon("settings")}</button>
+          <button class="more-button" type="button">More ${icon("grid")}</button>
         </div>
       </header>
       <section class="game-grid">
@@ -669,17 +675,19 @@ function colorMix(color, amount) {
 }
 
 function renderMobileKeyboard() {
-  const rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+  const rows = ["QWERTYUIOP", "ASDFGHJKL"];
   return `
     <div class="mobile-keyboard" aria-label="Mobile crossword keyboard">
       ${rows.map((row) => `
         <div class="mobile-keyboard-row">
           ${row.split("").map((key) => `<button type="button" class="mobile-key" data-key="${key}">${key}</button>`).join("")}
+          ${row === "ASDFGHJKL" ? '<button type="button" class="mobile-key utility-list" data-key="List">List</button>' : ""}
         </div>
       `).join("")}
       <div class="mobile-keyboard-row utility">
-        <button type="button" class="mobile-key wide" data-key="Backspace">Delete</button>
-        <button type="button" class="mobile-key wide" data-key="Enter">Direction</button>
+        <button type="button" class="mobile-key utility-number" data-key="Number">123</button>
+        ${"ZXCVBNM".split("").map((key) => `<button type="button" class="mobile-key" data-key="${key}">${key}</button>`).join("")}
+        <button type="button" class="mobile-key utility-delete" data-key="Backspace">←</button>
       </div>
     </div>
   `;
@@ -791,7 +799,7 @@ function bindGameEvents() {
   puzzleInput?.addEventListener("input", handlePuzzleInput);
   puzzleInput?.addEventListener("keydown", handlePuzzleInputKeydown);
   bindMobileKeyboard();
-  document.querySelector("#exit-lobby").addEventListener("click", leaveRoom);
+  document.querySelector("#back-button")?.addEventListener("click", leaveRoom);
   document.querySelector("#toggle-sidebar")?.addEventListener("click", () => {
     state.openSidebar = !state.openSidebar;
     renderGame();
@@ -856,6 +864,9 @@ function bindMobileKeyboard() {
         }
       } else if (key === "Enter") {
         toggleDirection();
+      } else if (key === "List") {
+        state.openSidebar = !state.openSidebar;
+        renderGame();
       }
     });
   });
