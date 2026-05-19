@@ -5,6 +5,7 @@ const crypto = require("node:crypto");
 
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
+const PUZZLES_DIR = path.join(__dirname, "puzzles");
 
 const COLORS = ["#3B82F6", "#4ADE80", "#F59E0B", "#A855F7"];
 const AVATARS = [
@@ -14,54 +15,107 @@ const AVATARS = [
   "linear-gradient(135deg,#7e22ce,#d8b4fe)",
 ];
 
-const gridRows = [
-  "ORBITAL#SOLVER#",
-  "R#E#A#A#O#E#O##",
-  "MOON#PIXEL#NODE",
-  "ION#T#L#I#D#I##",
-  "ASTRO#CHAT#ROOM",
-  "T#R#E#R#C#E#B##",
-  "CLUE#READY#SYNC",
-  "O#A#D#I#A#A#K##",
-  "LOGIC#CURSOR#UI",
-  "L#E#A#S#H#D#T##",
-  "BOARD#TIMER#WIN",
-  "A#B#I#A#P#L#E##",
-  "TEAM#ENTRY#GRID",
-  "E#R#E#E#E#Y#I##",
-  "STARRY#ANSWER#S",
-];
+function slugify(value) {
+  return String(value || "puzzle")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "") || "puzzle";
+}
 
-const clueBank = {
-  ORBITAL: "Things that circle planets",
-  SOLVER: "Player filling the grid",
-  MOON: "Night-sky satellite",
-  PIXEL: "Tiny unit of a digital image",
-  NODE: "Network point",
-  ASTRO: "Space-themed prefix",
-  CHAT: "Realtime message stream",
-  ROOM: "Private place to gather",
-  CLUE: "Hint for an entry",
-  READY: "Lobby state before launch",
-  SYNC: "What live collaboration needs",
-  LOGIC: "Reasoning under the fill",
-  CURSOR: "Indicator of active position",
-  UI: "Interface, briefly",
-  BOARD: "Crossword grid surface",
-  TIMER: "Elapsed-time counter",
-  WIN: "Puzzle-completion result",
-  TEAM: "Collaborating group",
-  ENTRY: "Answer slot",
-  GRID: "Crossword lattice",
-  STARRY: "Full of tiny lights",
-  ANSWER: "What each clue seeks",
-};
+function parsePuzzleText(source, filename = "puzzle.txt") {
+  const errors = [];
+  const lines = source.replace(/\r\n?/g, "\n").split("\n");
+  const sections = { grid: [], across: [], down: [] };
+  let title = "";
+  let author = "";
+  let section = "";
 
-function buildPuzzle() {
+  lines.forEach((rawLine, index) => {
+    const lineNumber = index + 1;
+    const line = rawLine.trim();
+    if (!line || line.startsWith("//")) return;
+
+    const titleMatch = line.match(/^TITLE\s*:\s*(.+)$/i);
+    const authorMatch = line.match(/^AUTHOR\s*:\s*(.+)$/i);
+    if (titleMatch) {
+      title = titleMatch[1].trim();
+      section = "";
+      return;
+    }
+    if (authorMatch) {
+      author = authorMatch[1].trim();
+      section = "";
+      return;
+    }
+    if (/^GRID\s*:?\s*$/i.test(line)) {
+      section = "grid";
+      return;
+    }
+    if (/^ACROSS\s*:?\s*$/i.test(line)) {
+      section = "across";
+      return;
+    }
+    if (/^DOWN\s*:?\s*$/i.test(line)) {
+      section = "down";
+      return;
+    }
+    if (!section) {
+      errors.push(`${filename}:${lineNumber} is outside a section: "${line}"`);
+      return;
+    }
+    sections[section].push({ line, lineNumber });
+  });
+
+  if (!title) errors.push(`${filename}: missing TITLE: line`);
+  if (!author) errors.push(`${filename}: missing AUTHOR: line`);
+  if (!sections.grid.length) errors.push(`${filename}: missing GRID section rows`);
+  if (!sections.across.length) errors.push(`${filename}: missing ACROSS clues`);
+  if (!sections.down.length) errors.push(`${filename}: missing DOWN clues`);
+
+  const gridRows = sections.grid.map((entry) => entry.line.toUpperCase());
+  const height = gridRows.length;
+  const width = gridRows[0]?.length || 0;
+  if (height && width) {
+    gridRows.forEach((row, index) => {
+      if (row.length !== width) {
+        errors.push(`${filename}:${sections.grid[index].lineNumber} grid row is ${row.length} cells wide; expected ${width}`);
+      }
+      if (!/^[A-Z#]+$/.test(row)) {
+        errors.push(`${filename}:${sections.grid[index].lineNumber} grid row contains invalid characters; use only A-Z and #`);
+      }
+    });
+  }
+
+  const parseClues = (entries, direction) => {
+    const clueMap = new Map();
+    for (const entry of entries) {
+      const match = entry.line.match(/^(\d+)\s*[\).\:-]\s*(.+)$/);
+      if (!match) {
+        errors.push(`${filename}:${entry.lineNumber} invalid ${direction} clue; expected "12. Clue text"`);
+        continue;
+      }
+      const number = Number(match[1]);
+      let body = match[2].trim();
+      let expectedAnswer = "";
+      const answerMatch = body.match(/^([A-Z]+)\s*(?:-|:)\s*(.+)$/i);
+      if (answerMatch) {
+        expectedAnswer = answerMatch[1].toUpperCase();
+        body = answerMatch[2].trim();
+      }
+      if (!body) errors.push(`${filename}:${entry.lineNumber} clue ${number}-${direction} has no clue text`);
+      if (clueMap.has(number)) errors.push(`${filename}:${entry.lineNumber} duplicate ${direction} clue number ${number}`);
+      clueMap.set(number, { text: body, expectedAnswer, lineNumber: entry.lineNumber });
+    }
+    return clueMap;
+  };
+
+  const acrossClues = parseClues(sections.across, "across");
+  const downClues = parseClues(sections.down, "down");
+  if (errors.length) return { puzzle: null, errors };
+
   const cells = [];
-  const size = 15;
-  for (let row = 0; row < size; row += 1) {
-    for (let col = 0; col < size; col += 1) {
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
       const ch = gridRows[row][col];
       cells.push({
         row,
@@ -79,29 +133,35 @@ function buildPuzzle() {
   const cluesAcross = [];
   const cluesDown = [];
 
-  for (let row = 0; row < size; row += 1) {
-    for (let col = 0; col < size; col += 1) {
+  for (let row = 0; row < height; row += 1) {
+    for (let col = 0; col < width; col += 1) {
       const cell = cellAt(row, col);
       if (cell.isBlack) continue;
 
-      const startsAcross = (col === 0 || cellAt(row, col - 1).isBlack) && col + 1 < size && !cellAt(row, col + 1).isBlack;
-      const startsDown = (row === 0 || cellAt(row - 1, col).isBlack) && row + 1 < size && !cellAt(row + 1, col).isBlack;
+      const startsAcross = (col === 0 || cellAt(row, col - 1).isBlack) && col + 1 < width && !cellAt(row, col + 1).isBlack;
+      const startsDown = (row === 0 || cellAt(row - 1, col).isBlack) && row + 1 < height && !cellAt(row + 1, col).isBlack;
       if (!startsAcross && !startsDown) continue;
 
       cell.clueNumber = clueNumber;
       if (startsAcross) {
         const entryCells = [];
         let c = col;
-        while (c < size && !cellAt(row, c).isBlack) {
+        while (c < width && !cellAt(row, c).isBlack) {
           entryCells.push({ row, col: c });
           c += 1;
         }
         const answer = entryCells.map((pos) => cellAt(pos.row, pos.col).solution).join("");
+        const clue = acrossClues.get(clueNumber);
+        if (!clue) {
+          errors.push(`${filename}: missing ACROSS clue ${clueNumber} for answer ${answer}`);
+        } else if (clue.expectedAnswer && clue.expectedAnswer !== answer) {
+          errors.push(`${filename}:${clue.lineNumber} ACROSS ${clueNumber} answer mismatch; clue says ${clue.expectedAnswer}, grid answer is ${answer}`);
+        }
         cluesAcross.push({
           id: `A-${clueNumber}`,
           number: clueNumber,
           direction: "across",
-          text: clueBank[answer] || `Collaborative fill: ${answer.length} letters`,
+          text: clue?.text || "",
           answer,
           cells: entryCells,
           ownerId: null,
@@ -111,16 +171,22 @@ function buildPuzzle() {
       if (startsDown) {
         const entryCells = [];
         let r = row;
-        while (r < size && !cellAt(r, col).isBlack) {
+        while (r < height && !cellAt(r, col).isBlack) {
           entryCells.push({ row: r, col });
           r += 1;
         }
         const answer = entryCells.map((pos) => cellAt(pos.row, pos.col).solution).join("");
+        const clue = downClues.get(clueNumber);
+        if (!clue) {
+          errors.push(`${filename}: missing DOWN clue ${clueNumber} for answer ${answer}`);
+        } else if (clue.expectedAnswer && clue.expectedAnswer !== answer) {
+          errors.push(`${filename}:${clue.lineNumber} DOWN ${clueNumber} answer mismatch; clue says ${clue.expectedAnswer}, grid answer is ${answer}`);
+        }
         cluesDown.push({
           id: `D-${clueNumber}`,
           number: clueNumber,
           direction: "down",
-          text: clueBank[answer] || `Pattern entry: ${answer.length} letters`,
+          text: clue?.text || "",
           answer,
           cells: entryCells,
           ownerId: null,
@@ -131,18 +197,63 @@ function buildPuzzle() {
     }
   }
 
-  return {
-    id: "sunday-stumper-001",
-    title: "Sunday Stumper",
-    subtitle: "A space and collaboration themed 15x15",
+  for (const number of acrossClues.keys()) {
+    if (!cluesAcross.some((clue) => clue.number === number)) {
+      errors.push(`${filename}: extra ACROSS clue ${number}; no across answer starts at that number`);
+    }
+  }
+  for (const number of downClues.keys()) {
+    if (!cluesDown.some((clue) => clue.number === number)) {
+      errors.push(`${filename}: extra DOWN clue ${number}; no down answer starts at that number`);
+    }
+  }
+
+  const size = width === height ? width : { width, height };
+  const puzzle = {
+    id: slugify(path.basename(filename, path.extname(filename))),
+    title,
+    author,
+    subtitle: `${author} - ${width}x${height}`,
+    width,
+    height,
     size,
     cells,
     cluesAcross,
     cluesDown,
   };
+  return { puzzle: errors.length ? null : puzzle, errors };
 }
 
-const puzzleTemplate = buildPuzzle();
+function loadPuzzleLibrary() {
+  const puzzles = [];
+  const errors = [];
+  if (!fs.existsSync(PUZZLES_DIR)) {
+    return { puzzles, errors: [`Missing puzzles folder: ${PUZZLES_DIR}`] };
+  }
+  const files = fs.readdirSync(PUZZLES_DIR).filter((file) => file.toLowerCase().endsWith(".txt")).sort();
+  if (!files.length) errors.push("No .txt puzzle files found in /puzzles");
+
+  for (const file of files) {
+    const filePath = path.join(PUZZLES_DIR, file);
+    const result = parsePuzzleText(fs.readFileSync(filePath, "utf8"), file);
+    if (result.errors.length) {
+      errors.push(...result.errors);
+    } else {
+      puzzles.push(result.puzzle);
+    }
+  }
+  return { puzzles, errors };
+}
+
+function getPuzzleTemplate(puzzleId = "") {
+  const library = loadPuzzleLibrary();
+  if (!library.puzzles.length) {
+    throw new Error(`No valid puzzles available. ${library.errors.join(" ")}`);
+  }
+  const selected = library.puzzles.find((puzzle) => puzzle.id === puzzleId) || library.puzzles[0];
+  return selected;
+}
+
 const rooms = new Map();
 
 function id(prefix = "") {
@@ -160,7 +271,8 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function createRoom(host) {
+function createRoom(host, puzzleId = "") {
+  const puzzleTemplate = getPuzzleTemplate(puzzleId);
   const code = lobbyCode();
   const room = {
     id: id("room_"),
@@ -376,8 +488,25 @@ function recalculate(room, finalPlayerId = null) {
 
 async function handleApi(req, res, pathname) {
   try {
+    if (req.method === "GET" && pathname === "/api/puzzles") {
+      const library = loadPuzzleLibrary();
+      return json(res, library.puzzles.length ? 200 : 400, {
+        puzzles: library.puzzles.map((puzzle) => ({
+          id: puzzle.id,
+          title: puzzle.title,
+          author: puzzle.author,
+          width: puzzle.width,
+          height: puzzle.height,
+          cluesAcross: puzzle.cluesAcross.length,
+          cluesDown: puzzle.cluesDown.length,
+        })),
+        errors: library.errors,
+      });
+    }
+
     if (req.method === "GET" && pathname === "/api/puzzle") {
-      return json(res, 200, puzzleTemplate);
+      const requested = new URL(req.url, `http://${req.headers.host}`).searchParams.get("id") || "";
+      return json(res, 200, getPuzzleTemplate(requested));
     }
 
     if (req.method === "POST" && pathname === "/api/lobby/create") {
@@ -387,7 +516,7 @@ async function handleApi(req, res, pathname) {
         username: body.username || "You",
         email: body.email || "",
       };
-      const room = createRoom(player);
+      const room = createRoom(player, body.puzzleId);
       return json(res, 200, { room: clientRoom(room), playerId: player.id });
     }
 

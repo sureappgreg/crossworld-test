@@ -294,7 +294,7 @@ function renderHome() {
           <div class="lobby-title">
             <p class="kicker">Private multiplayer crossword</p>
             <h1>Start a room, solve together.</h1>
-            <p class="lede">A playable 15x15 puzzle with live typing, active-clue presence, clue ownership, chat, and results.</p>
+            <p class="lede">Playable imported puzzles with live typing, active-clue presence, clue ownership, chat, and results.</p>
           </div>
           <div class="lobby-actions">
             <button class="primary" id="create-room">Create Lobby</button>
@@ -397,6 +397,7 @@ function renderLobby() {
   const me = playerById(state.playerId);
   const isHost = room.hostId === state.playerId;
   const canStart = isHost && room.players.every((player) => player.id === room.hostId || player.ready);
+  const puzzleSize = `${room.puzzle.width || room.puzzle.size}x${room.puzzle.height || room.puzzle.size}`;
   app.innerHTML = `
     <main class="app-shell">
       <section class="lobby-wrap">
@@ -405,7 +406,7 @@ function renderLobby() {
           <div class="lobby-title">
             <p class="kicker">Lobby</p>
             <h1>${escapeHtml(room.puzzle.title)}</h1>
-            <p class="lede">${escapeHtml(room.puzzle.subtitle)} - 15x15 - Private room - ${room.players.length}/${room.maxPlayers} players</p>
+            <p class="lede">${escapeHtml(room.puzzle.subtitle)} - ${puzzleSize} - Private room - ${room.players.length}/${room.maxPlayers} players</p>
             <div class="room-code">
               <div>
                 <p class="section-label" style="margin:0 0 6px">Invite Code</p>
@@ -424,7 +425,7 @@ function renderLobby() {
           <div class="player-list">${playerRows(room.players)}</div>
           <div class="meter">
             <p class="section-label">Puzzle Metadata</p>
-            <strong>15x15</strong>
+            <strong>${puzzleSize}</strong>
             <p class="lede" style="margin:0">Across and down clues, black squares, live clue validation, and contribution ownership.</p>
           </div>
           <button class="ghost" id="leave-room">Leave Lobby</button>
@@ -500,7 +501,7 @@ function renderGame() {
       <section class="game-grid">
         ${renderSidebar(stats)}
         <section class="board-zone">
-          <div class="board-shell"><div id="board" class="crossword-board">${renderBoardCells()}</div></div>
+          <div class="board-shell"><div id="board" class="crossword-board" style="--grid-width:${room.puzzle.width || room.puzzle.size};--grid-height:${room.puzzle.height || room.puzzle.size}">${renderBoardCells()}</div></div>
           <input id="puzzle-keyboard" class="puzzle-keyboard" inputmode="text" autocomplete="off" autocapitalize="characters" aria-label="Puzzle keyboard input" />
           <div class="lower-panels">
             ${renderActiveClue()}
@@ -542,8 +543,10 @@ function renderBoardCells() {
   const activeClue = clueById(state.active.clueId) || clueForCell(state.active.row, state.active.col);
   const activeKeys = new Set(activeClue?.cells.map((cell) => `${cell.row}:${cell.col}`) || []);
   const me = playerById(state.playerId);
+  const width = state.room.puzzle.width || state.room.puzzle.size;
   return state.room.puzzle.cells.map((cell) => {
-    if (cell.isBlack) return `<div class="cell black" data-row="${cell.row}" data-col="${cell.col}"></div>`;
+    const edgeClass = cell.col === width - 1 ? "last-column" : "";
+    if (cell.isBlack) return `<div class="cell black ${edgeClass}" data-row="${cell.row}" data-col="${cell.col}"></div>`;
     const peers = state.room.players.filter((player) =>
       player.id !== state.playerId &&
       player.online &&
@@ -569,6 +572,7 @@ function renderBoardCells() {
     const ownedSolved = Boolean(acrossOwner || downOwner);
     const classes = [
       "cell",
+      edgeClass,
       activeKeys.has(`${cell.row}:${cell.col}`) ? "selected-clue" : "",
       peerCluePlayer ? "peer-clue" : "",
       state.active.row === cell.row && state.active.col === cell.col ? "active" : "",
@@ -863,7 +867,9 @@ function toggleDirection() {
 function moveGrid(dr, dc) {
   let row = state.active.row + dr;
   let col = state.active.col + dc;
-  while (row >= 0 && row < state.room.puzzle.size && col >= 0 && col < state.room.puzzle.size) {
+  const width = state.room.puzzle.width || state.room.puzzle.size;
+  const height = state.room.puzzle.height || state.room.puzzle.size;
+  while (row >= 0 && row < height && col >= 0 && col < width) {
     const cell = cellAt(row, col);
     if (cell && !cell.isBlack) {
       selectCell(row, col, state.active.direction);

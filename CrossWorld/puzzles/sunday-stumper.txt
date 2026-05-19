@@ -1,0 +1,60 @@
+TITLE: Sunday Stumper
+AUTHOR: CrossWorld Team
+
+GRID:
+PRACHIG#SOLVER#
+R#E#A#A#O#E#O##
+MOON#PIXEL#NODE
+ION#T#L#I#D#I##
+ASTRO#CHAT#ROOM
+T#R#E#R#C#E#B##
+CLUE#READY#SYNC
+O#A#D#I#A#A#K##
+LOGIC#CURSOR#UI
+L#E#A#S#H#D#T##
+BOARD#TIMER#WIN
+A#B#I#A#P#L#E##
+TEAM#ENTRY#GRID
+E#R#E#E#E#Y#I##
+STARRY#ANSWER#S
+
+ACROSS:
+1. PRACHIG - Occupant of 38 S Willow
+5. SOLVER - Player filling the grid
+8. MOON - Night-sky satellite
+10. PIXEL - Tiny unit of a digital image
+11. NODE - Network point
+12. ION - Charged particle
+14. ASTRO - Space-themed prefix
+15. CHAT - Realtime message stream
+16. ROOM - Private place to gather
+17. CLUE - Hint for an entry
+18. READY - Lobby state before launch
+19. SYNC - What live collaboration needs
+22. LOGIC - Reasoning under the fill
+23. CURSOR - Indicator of active position
+24. UI - Interface, briefly
+26. BOARD - Crossword grid surface
+27. TIMER - Elapsed-time counter
+28. WIN - Puzzle-completion result
+29. TEAM - Collaborating group
+30. ENTRY - Answer slot
+31. GRID - Crossword lattice
+34. STARRY - Full of tiny lights
+35. ANSWER - What each clue seeks
+
+DOWN:
+1. ORMIATCOLLBATES - Pattern entry through the first column
+2. BEONTRUAGEABARA - Pattern entry through the third column
+3. TA - Short pattern entry
+4. LAILCREICSTANE - Pattern entry through the seventh column
+5. SOEIACDARHMPREN - Pattern entry through the ninth column
+6. LE - Short pattern entry
+7. EOOIOBYK - Pattern entry through the thirteenth column
+9. OOS - Pattern entry near the upper left
+13. TOE - Pattern entry near the upper center
+20. DCADI - Pattern entry in the lower center
+21. AODRL - Pattern entry in the lower right
+25. TWERIR - Pattern entry on the right side
+32. ER - Short lower pattern entry
+33. YW - Short lower pattern entry

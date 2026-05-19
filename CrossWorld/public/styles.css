@@ -553,8 +553,8 @@ input:focus {
   width: min(100%, 720px);
   aspect-ratio: 1;
   display: grid;
-  grid-template-columns: repeat(15, 1fr);
-  grid-template-rows: repeat(15, 1fr);
+  grid-template-columns: repeat(var(--grid-width, 15), 1fr);
+  grid-template-rows: repeat(var(--grid-height, 15), 1fr);
   margin: auto;
   border: 1px solid #99a4b5;
 }
@@ -578,7 +578,7 @@ input:focus {
   overflow: hidden;
 }
 
-.cell:nth-child(15n) {
+.cell.last-column {
   border-right: 0;
 }
 

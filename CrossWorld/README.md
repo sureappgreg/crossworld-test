@@ -32,6 +32,55 @@ Use a Web Service with these settings:
 
 Render will provide `PORT`; `server.js` uses `process.env.PORT || 3000`.
 
+## Puzzle Import Workflow
+
+CrossWorld loads puzzle source files from the `/puzzles` folder. Add a `.txt` file there, restart the server, and new lobbies will use the first valid puzzle unless a `puzzleId` is passed to `/api/lobby/create`.
+
+Check loaded puzzles and import errors:
+
+```txt
+GET /api/puzzles
+```
+
+Fetch a converted puzzle JSON:
+
+```txt
+GET /api/puzzle?id=sunday-stumper
+```
+
+### Text Format
+
+Use this structure:
+
+```txt
+TITLE: My Puzzle
+AUTHOR: Your Name
+
+GRID:
+CAT
+A#R
+TEN
+
+ACROSS:
+1. CAT - Small pet
+3. TEN - Number after nine
+
+DOWN:
+1. CAT - Feline pattern entry
+2. TRN - Optional answer prefix, then clue text
+```
+
+Rules:
+
+- `GRID` rows use `A-Z` for answer cells and `#` for black squares.
+- Every grid row must have the same width.
+- Clue numbers are auto-detected from the grid.
+- Clue lines can be `1. Clue text` or `1. ANSWER - Clue text`.
+- If you include an answer prefix, CrossWorld validates it against the grid answer.
+- Missing clues, extra clues, duplicate clue numbers, invalid grid characters, uneven grid rows, and answer mismatches return clear errors from `/api/puzzles`.
+
+An example puzzle is included at [puzzles/sunday-stumper.txt](/Users/gregoryramirez/Documents/Codex/CrossWorld/puzzles/sunday-stumper.txt).
+
 ## Implemented
 
 - Login/profile simulation with persistent username and generated avatar styling
