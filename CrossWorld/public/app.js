@@ -368,6 +368,17 @@ function avatar(player, size = "") {
   return `<span class="avatar ${size}" style="--player-color:${player.color};background:${player.avatarStyle}">${escapeHtml(initials(player.username))}</span>`;
 }
 
+function icon(name) {
+  const icons = {
+    users: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    chat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
+    chevronUp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>',
+    chevronDown: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+    send: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
+  };
+  return icons[name] || "";
+}
+
 function playerRows(players = state.room.players) {
   return players.map((player) => `
     <div class="player-row" style="--player-color:${player.color}">
@@ -480,8 +491,8 @@ function renderGame() {
         </div>
         <div class="toolbar">
           <div class="mobile-actions">
-            <button class="icon-button" id="toggle-sidebar" title="Players">P</button>
-            <button class="icon-button" id="toggle-chat-mobile" title="Chat">C</button>
+            <button class="icon-button" id="toggle-sidebar" title="Players" aria-label="Players">${icon("users")}</button>
+            <button class="icon-button" id="toggle-chat-mobile" title="Chat" aria-label="Chat">${icon("chat")}</button>
           </div>
           <button class="ghost" id="exit-lobby">Exit Lobby</button>
         </div>
@@ -490,13 +501,9 @@ function renderGame() {
         ${renderSidebar(stats)}
         <section class="board-zone">
           <div class="board-shell"><div id="board" class="crossword-board">${renderBoardCells()}</div></div>
+          <input id="puzzle-keyboard" class="puzzle-keyboard" inputmode="text" autocomplete="off" autocapitalize="characters" aria-label="Puzzle keyboard input" />
           <div class="lower-panels">
             ${renderActiveClue()}
-            <div class="active-clue panel">
-              <div class="meta"><span>Activity</span></div>
-              <p>${escapeHtml(room.activity[0]?.text || "Waiting for the next move.")}</p>
-              <span class="status">${room.activity[0] ? timeLabel(room.activity[0].at) : ""}</span>
-            </div>
           </div>
         </section>
         ${renderClues()}
@@ -543,18 +550,29 @@ function renderBoardCells() {
       player.cursor?.col === cell.col
     );
     const peer = peers[0];
-    const ownedSolved = allClues().some((clue) => clue.solvedAt && clue.cells.some((pos) => pos.row === cell.row && pos.col === cell.col));
+    const solvedOwners = allClues()
+      .filter((clue) => clue.solvedAt && clue.ownerId && clue.cells.some((pos) => pos.row === cell.row && pos.col === cell.col))
+      .map((clue) => playerById(clue.ownerId))
+      .filter(Boolean);
+    const uniqueOwners = solvedOwners.filter((owner, index, owners) => owners.findIndex((candidate) => candidate.id === owner.id) === index).slice(0, 2);
+    const ownedSolved = uniqueOwners.length > 0;
     const classes = [
       "cell",
       activeKeys.has(`${cell.row}:${cell.col}`) ? "selected-clue" : "",
       state.active.row === cell.row && state.active.col === cell.col ? "active" : "",
       peer ? "peer" : "",
+      uniqueOwners.length === 1 ? "solved-owner" : "",
+      uniqueOwners.length > 1 ? "split-owner" : "",
       state.solvedFlash.size && ownedSolved ? "solved" : "",
     ].filter(Boolean).join(" ");
+    const styleParts = [];
+    if (peer) styleParts.push(`--peer-color:${peer.color}`);
+    if (uniqueOwners[0]) styleParts.push(`--solve-color-a:${uniqueOwners[0].color}`);
+    if (uniqueOwners[1]) styleParts.push(`--solve-color-b:${uniqueOwners[1].color}`);
     return `
-      <button class="${classes}" data-row="${cell.row}" data-col="${cell.col}" style="${peer ? `--peer-color:${peer.color}` : ""}" aria-label="Row ${cell.row + 1}, column ${cell.col + 1}">
+      <button class="${classes}" data-row="${cell.row}" data-col="${cell.col}" style="${styleParts.join(";")}" aria-label="Row ${cell.row + 1}, column ${cell.col + 1}">
         ${cell.clueNumber ? `<span class="num">${cell.clueNumber}</span>` : ""}
-        <span>${escapeHtml(cell.value)}</span>
+        <span class="cell-value">${escapeHtml(cell.value)}</span>
         ${peer ? `<span class="peer-cursor" title="${escapeHtml(peer.username)}" style="--peer-color:${peer.color}"></span>` : ""}
       </button>
     `;
@@ -569,10 +587,11 @@ function renderBoardOnly() {
 function renderActiveClue() {
   const clue = clueById(state.active.clueId) || state.room.puzzle.cluesAcross[0];
   return `
-    <div class="active-clue panel">
+    <div class="active-clue panel" id="active-clue-card">
       <div class="meta"><span>${clue.direction}</span><span>${clue.number}</span></div>
       <p>${escapeHtml(clue.text)}</p>
       <span class="status">${clue.answer.length} letters${clue.solvedAt ? " - solved" : ""}</span>
+      <input class="mobile-entry-field" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="1" aria-label="Enter crossword letters" placeholder="Letters" />
     </div>
   `;
 }
@@ -612,7 +631,7 @@ function renderChat() {
     <aside class="${cls}" id="chat">
       <div class="chat-head">
         <p class="section-label" style="margin:0"><span>Chat</span></p>
-        <button class="icon-button" id="toggle-chat" title="Toggle chat">${state.collapsedChat ? "+" : "^"}</button>
+        <button class="icon-button" id="toggle-chat" title="Toggle chat" aria-label="Toggle chat">${state.collapsedChat ? icon("chevronDown") : icon("chevronUp")}</button>
       </div>
       <div class="chat-body">
         ${state.room.messages.slice(-40).map((message) => {
@@ -630,34 +649,36 @@ function renderChat() {
       </div>
       <form class="chat-form" id="chat-form">
         <input id="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" />
-        <button class="primary" type="submit" aria-label="Send">></button>
+        <button class="primary" type="submit" aria-label="Send">${icon("send")}</button>
       </form>
     </aside>
   `;
 }
 
 function bindGameEvents() {
-  document.querySelector("#board").addEventListener("click", (event) => {
+  const board = document.querySelector("#board");
+  board.addEventListener("pointerdown", (event) => {
+    const button = event.target.closest("[data-row]");
+    if (!button || button.classList.contains("black")) return;
+    focusPuzzleKeyboard();
+  });
+  board.addEventListener("click", (event) => {
     const button = event.target.closest("[data-row]");
     if (!button || button.classList.contains("black")) return;
     selectCell(Number(button.dataset.row), Number(button.dataset.col));
   });
   document.onkeydown = handleKeydown;
-  document.querySelectorAll("[data-tab]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.clueTab = button.dataset.tab;
-      renderGame();
-    });
-  });
-  document.querySelectorAll("[data-clue-id]").forEach((button) => {
-    button.addEventListener("click", () => selectClue(button.dataset.clueId));
-  });
+  bindClueControls();
   document.querySelector("#toggle-chat").addEventListener("click", () => {
     if (window.matchMedia("(max-width: 1320px)").matches) state.openChat = !state.openChat;
     state.collapsedChat = !state.collapsedChat;
     renderGame();
   });
   document.querySelector("#chat-form").addEventListener("submit", sendChat);
+  const puzzleInput = document.querySelector("#puzzle-keyboard");
+  puzzleInput?.addEventListener("input", handlePuzzleInput);
+  puzzleInput?.addEventListener("keydown", handlePuzzleInputKeydown);
+  bindMobileEntryField();
   document.querySelector("#exit-lobby").addEventListener("click", leaveRoom);
   document.querySelector("#toggle-sidebar")?.addEventListener("click", () => {
     state.openSidebar = !state.openSidebar;
@@ -668,6 +689,38 @@ function bindGameEvents() {
     state.collapsedChat = false;
     renderGame();
   });
+}
+
+function bindClueControls() {
+  document.querySelectorAll("[data-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.clueTab = button.dataset.tab;
+      refreshGameSelection();
+    });
+  });
+  document.querySelectorAll("[data-clue-id]").forEach((button) => {
+    button.addEventListener("click", () => selectClue(button.dataset.clueId));
+  });
+}
+
+function refreshGameSelection() {
+  renderBoardOnly();
+  const activeClueCard = document.querySelector("#active-clue-card");
+  if (activeClueCard) {
+    activeClueCard.outerHTML = renderActiveClue();
+    bindMobileEntryField();
+  }
+  const cluesPanel = document.querySelector(".clues-panel");
+  if (cluesPanel) {
+    cluesPanel.outerHTML = renderClues();
+    bindClueControls();
+  }
+}
+
+function bindMobileEntryField() {
+  const field = document.querySelector(".mobile-entry-field");
+  field?.addEventListener("input", handlePuzzleInput);
+  field?.addEventListener("keydown", handlePuzzleInputKeydown);
 }
 
 function isTypingInInput(event) {
@@ -719,7 +772,8 @@ function selectCell(row, col, direction = state.active.direction) {
   state.active = { row, col, direction: clue.direction, clueId: clue.id };
   state.clueTab = clue.direction;
   postCursor();
-  renderGame();
+  refreshGameSelection();
+  focusPuzzleKeyboard();
 }
 
 function selectClue(clueId) {
@@ -729,7 +783,53 @@ function selectClue(clueId) {
   state.active = { row: firstEmpty.row, col: firstEmpty.col, direction: clue.direction, clueId: clue.id };
   state.clueTab = clue.direction;
   postCursor();
-  renderGame();
+  refreshGameSelection();
+  focusPuzzleKeyboard();
+}
+
+function focusPuzzleKeyboard() {
+  const input = document.querySelector("#puzzle-keyboard");
+  if (!input) return;
+  input.value = "";
+  input.focus();
+}
+
+function handlePuzzleInput(event) {
+  const next = String(event.target.value || "").slice(-1).toUpperCase();
+  event.target.value = "";
+  if (/^[A-Z]$/.test(next)) updateCell(next);
+}
+
+function handlePuzzleInputKeydown(event) {
+  if (event.key === "Backspace") {
+    event.preventDefault();
+    const current = cellAt(state.active.row, state.active.col);
+    if (current?.value) {
+      updateCell("");
+    } else {
+      moveBy(-1);
+      updateCell("");
+    }
+  } else if (event.key === "Enter" || event.key === " ") {
+    event.preventDefault();
+    toggleDirection();
+  } else if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    state.active.direction = "across";
+    moveGrid(0, -1);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    state.active.direction = "across";
+    moveGrid(0, 1);
+  } else if (event.key === "ArrowUp") {
+    event.preventDefault();
+    state.active.direction = "down";
+    moveGrid(-1, 0);
+  } else if (event.key === "ArrowDown") {
+    event.preventDefault();
+    state.active.direction = "down";
+    moveGrid(1, 0);
+  }
 }
 
 function toggleDirection() {
@@ -740,7 +840,8 @@ function toggleDirection() {
     state.active.clueId = clue.id;
     state.clueTab = clue.direction;
     postCursor();
-    renderGame();
+    refreshGameSelection();
+    focusPuzzleKeyboard();
   }
 }
 

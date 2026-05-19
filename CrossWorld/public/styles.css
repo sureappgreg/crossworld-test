@@ -405,6 +405,19 @@ input:focus {
   background: rgba(255,255,255,.08);
   color: var(--text);
   border: 1px solid var(--line);
+  display: inline-grid;
+  place-items: center;
+}
+
+.icon-button svg,
+.chat-form button svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
 }
 
 .game-grid {
@@ -562,6 +575,7 @@ input:focus {
   text-transform: uppercase;
   user-select: none;
   transition: background 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+  overflow: hidden;
 }
 
 .cell:nth-child(15n) {
@@ -586,6 +600,32 @@ input:focus {
   background: #dbeafe;
 }
 
+.cell.solved-owner {
+  background: color-mix(in srgb, var(--solve-color-a) 22%, #f8fafc);
+}
+
+.cell.split-owner {
+  background: linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--solve-color-a) 25%, #f8fafc) 0 49.4%,
+    rgba(255, 255, 255, 0.72) 49.4% 50.6%,
+    color-mix(in srgb, var(--solve-color-b) 25%, #f8fafc) 50.6% 100%
+  );
+}
+
+.cell.selected-clue.solved-owner {
+  background: color-mix(in srgb, var(--solve-color-a) 27%, #dbeafe);
+}
+
+.cell.selected-clue.split-owner {
+  background: linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--solve-color-a) 30%, #dbeafe) 0 49.4%,
+    rgba(255, 255, 255, 0.7) 49.4% 50.6%,
+    color-mix(in srgb, var(--solve-color-b) 30%, #dbeafe) 50.6% 100%
+  );
+}
+
 .cell.peer {
   box-shadow: inset 0 0 0 4px color-mix(in srgb, var(--peer-color) 26%, transparent);
 }
@@ -606,22 +646,37 @@ input:focus {
 
 .peer-cursor {
   position: absolute;
-  width: 0;
-  height: 0;
-  border-left: 12px solid transparent;
-  border-right: 12px solid transparent;
-  border-bottom: 20px solid var(--peer-color);
-  opacity: .86;
-  transform: rotate(-38deg);
-  right: 3px;
-  bottom: 3px;
-  filter: drop-shadow(0 4px 6px rgba(0,0,0,.22));
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--peer-color);
+  border: 2px solid rgba(255, 255, 255, 0.92);
+  right: 4px;
+  bottom: 4px;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--peer-color) 60%, rgba(0,0,0,.2));
+  z-index: 3;
 }
 
 .lower-panels {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 14px;
+}
+
+.puzzle-keyboard {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  width: 1px;
+  height: 1px;
+  opacity: .01;
+  color: transparent;
+  caret-color: transparent;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  pointer-events: auto;
+  z-index: 0;
 }
 
 .clues-panel {
@@ -712,6 +767,10 @@ input:focus {
   margin: 18px 0 8px;
 }
 
+.mobile-entry-field {
+  display: none;
+}
+
 .chat-panel {
   height: calc(100vh - 102px);
   display: grid;
@@ -777,6 +836,12 @@ input:focus {
   display: grid;
   grid-template-columns: 1fr 46px;
   gap: 10px;
+}
+
+.chat-form button {
+  display: grid;
+  place-items: center;
+  padding: 0;
 }
 
 .mobile-actions {
@@ -947,6 +1012,15 @@ input:focus {
 
   .crossword-board {
     min-width: min(680px, 92vw);
+  }
+
+  .mobile-entry-field {
+    display: block;
+    margin-top: 16px;
+    max-width: 150px;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: .16em;
   }
 }
 
