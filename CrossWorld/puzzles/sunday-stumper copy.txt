@@ -21,44 +21,44 @@ YES##OPENS#YMCA
 ACROSS:
 
 1. Canal name | SUEZ
-2. Creed | DOGMA
-3. Lick | LAP
-4. Hairstyle | AFRO
-5. Loafer | IDLER
-6. Sixth month of the year | JUNE
-7. One who gets things done | DOER
-8. Quake | SEISM
-9. Land mass | ASIA
-10. Promissory note | IOU
-11. Game played with a bat, ball and two teams | BASEBALL
-12. Droop | SAG
-13. North American country | USA
-14. Prods | POKES
-15. Below thousands | HUNDREDS
-16. Soft cheese from Greece | FETA
-17. Decorative needle case | ETUI
-18. Netherlands’ capital | HAGUE
-19. Medicine amount | DOSE
-20. Domain | BOURN
-21. Former wound | SCAR
-22. City of pilgrimages | MECCA
-23. Tortoise and the ___ | HARE
-24. June holiday _____ Day | FLAG
-25. Loved | ESTEEMED
-26. Relating to the sun | SOLAR
-27. Eat | SUP
-28. Old-fashioned Dads | PAS
-29. Souvenirs | TRINKETS
-30. Slumber | NAP
-31. Standing | RANK
-32. Indelicate | CRUDE
-33. What children talk with | LISP
-34. Lawyer (abbr.) | ATTY
-35. Employer | HIRER
-36. A wager (2 wds.) | ABET
-37. Affirmation | YES
-38. Golf tournaments | OPENS
-39. Young Men’s Christian Association | YMCA
+5. Creed | DOGMA
+10. Lick | LAP
+13. Hairstyle | AFRO
+14. Loafer | IDLER
+15. Sixth month of the year | JUNE
+16. One who gets things done | DOER
+17. Quake | SEISM
+18. Land mass | ASIA
+19. Promissory note | IOU
+21. Game played with a bat, ball and two teams | BASEBALL
+23. Droop | SAG
+26. North American country | USA
+28. Prods | POKES
+29. Below thousands | HUNDREDS
+32. Soft cheese from Greece | FETA
+33. Decorative needle case | ETUI
+34. Netherlands’ capital | HAGUE
+36. Medicine amount | DOSE
+37. Domain | BOURN
+38. Former wound | SCAR
+42. City of pilgrimages | MECCA
+43. Tortoise and the ___ | HARE
+44. June holiday _____ Day | FLAG
+46. Loved | ESTEEMED
+49. Relating to the sun | SOLAR
+51. Eat | SUP
+52. Old-fashioned Dads | PAS
+53. Souvenirs | TRINKETS
+57. Slumber | NAP
+59. Standing | RANK
+60. Indelicate | CRUDE
+62. What children talk with | LISP
+66. Lawyer (abbr.) | ATTY
+67. Employer | HIRER
+68. A wager (2 wds.) | ABET
+69. Affirmation | YES
+70. Golf tournaments | OPENS
+71. Young Men’s Christian Association | YMCA
 
 DOWN:
 
@@ -74,34 +74,34 @@ DOWN:
 10. National capital | LUSAKA
 11. Senile | ANILE
 12. Rings, like bells | PEALS
-13. Ruffle down the front | JABOT
-14. Possessive pronoun | OUR
-15. Fencing sword | EPEE
-16. Thrown off | SHED
-17. Motor vehicle | AUTO
-18. African antelope | GNUS
-19. Special case only (2 wds.) | ADHOC
-20. Demise | DIE
-21. Food covering | SAUCE
-22. Something that gives pleasure or enjoyment | FUN
-23. Green plant that often covers lawns | GRASS
-24. Solicit | BEG
-25. Her | SHE
-26. Outdoor area where tents are set up to sleep in | CAMP
-27. Domain | AREA
-28. Cincinnati baseball team | REDS
-29. Stigma | MARK
-30. Fire making stones | FLINTS
-31. Lean | LANKY
-32. Radios | TUNERS
-33. Government agency | EPA
-34. Wander | STRAY
-35. Speak in public | ORATE
-36. Resound | ECHO
-37. Short journey from one point to another | TRIP
-38. Positive | SURE
-39. Activity intended for amusement | PLAY
-40. Fox hole | DEN
-41. Large computer co. | IBM
-42. Part of a minute | SEC
-43. School group | PTA
+15. Ruffle down the front | JABOT
+20. Possessive pronoun | OUR
+22. Fencing sword | EPEE
+23. Thrown off | SHED
+24. Motor vehicle | AUTO
+25. African antelope | GNUS
+27. Special case only (2 wds.) | ADHOC
+30. Demise | DIE
+31. Food covering | SAUCE
+32. Something that gives pleasure or enjoyment | FUN
+35. Green plant that often covers lawns | GRASS
+37. Solicit | BEG
+38. Her | SHE
+39. Outdoor area where tents are set up to sleep in | CAMP
+40. Domain | AREA
+41. Cincinnati baseball team | REDS
+42. Stigma | MARK
+44. Fire making stones | FLINTS
+45. Lean | LANKY
+47. Radios | TUNERS
+48. Government agency | EPA
+49. Wander | STRAY
+50. Speak in public | ORATE
+54. Resound | ECHO
+55. Short journey from one point to another | TRIP
+56. Positive | SURE
+58. Activity intended for amusement | PLAY
+61. Fox hole | DEN
+63. Large computer co. | IBM
+64. Part of a minute | SEC
+65. School group | PTA
