@@ -541,6 +541,7 @@ function renderSidebar(stats = progress()) {
 function renderBoardCells() {
   const activeClue = clueById(state.active.clueId) || clueForCell(state.active.row, state.active.col);
   const activeKeys = new Set(activeClue?.cells.map((cell) => `${cell.row}:${cell.col}`) || []);
+  const me = playerById(state.playerId);
   return state.room.puzzle.cells.map((cell) => {
     if (cell.isBlack) return `<div class="cell black" data-row="${cell.row}" data-col="${cell.col}"></div>`;
     const peers = state.room.players.filter((player) =>
@@ -550,25 +551,39 @@ function renderBoardCells() {
       player.cursor?.col === cell.col
     );
     const peer = peers[0];
-    const solvedOwners = allClues()
-      .filter((clue) => clue.solvedAt && clue.ownerId && clue.cells.some((pos) => pos.row === cell.row && pos.col === cell.col))
-      .map((clue) => playerById(clue.ownerId))
-      .filter(Boolean);
-    const uniqueOwners = solvedOwners.filter((owner, index, owners) => owners.findIndex((candidate) => candidate.id === owner.id) === index).slice(0, 2);
-    const ownedSolved = uniqueOwners.length > 0;
+    const peerCluePlayers = state.room.players.filter((player) => {
+      if (player.id === state.playerId || !player.online || !player.cursor?.clueId) return false;
+      const clue = clueById(player.cursor.clueId);
+      return clue?.cells.some((pos) => pos.row === cell.row && pos.col === cell.col);
+    });
+    const peerCluePlayer = peerCluePlayers[0];
+    const solvedClues = allClues().filter((clue) =>
+      clue.solvedAt &&
+      clue.ownerId &&
+      clue.cells.some((pos) => pos.row === cell.row && pos.col === cell.col)
+    );
+    const acrossOwner = playerById(solvedClues.find((clue) => clue.direction === "across")?.ownerId);
+    const downOwner = playerById(solvedClues.find((clue) => clue.direction === "down")?.ownerId);
+    const splitOwner = acrossOwner && downOwner && acrossOwner.id !== downOwner.id;
+    const singleOwner = splitOwner ? null : (acrossOwner || downOwner);
+    const ownedSolved = Boolean(acrossOwner || downOwner);
     const classes = [
       "cell",
       activeKeys.has(`${cell.row}:${cell.col}`) ? "selected-clue" : "",
+      peerCluePlayer ? "peer-clue" : "",
       state.active.row === cell.row && state.active.col === cell.col ? "active" : "",
       peer ? "peer" : "",
-      uniqueOwners.length === 1 ? "solved-owner" : "",
-      uniqueOwners.length > 1 ? "split-owner" : "",
+      singleOwner ? "solved-owner" : "",
+      splitOwner ? "split-owner" : "",
       state.solvedFlash.size && ownedSolved ? "solved" : "",
     ].filter(Boolean).join(" ");
     const styleParts = [];
     if (peer) styleParts.push(`--peer-color:${peer.color}`);
-    if (uniqueOwners[0]) styleParts.push(`--solve-color-a:${uniqueOwners[0].color}`);
-    if (uniqueOwners[1]) styleParts.push(`--solve-color-b:${uniqueOwners[1].color}`);
+    if (me) styleParts.push(`--active-color:${me.color}`);
+    if (peerCluePlayer) styleParts.push(`--peer-clue-color:${peerCluePlayer.color}`);
+    if (singleOwner) styleParts.push(`--solve-color-a:${singleOwner.color}`);
+    if (acrossOwner) styleParts.push(`--solve-horizontal:${acrossOwner.color}`);
+    if (downOwner) styleParts.push(`--solve-vertical:${downOwner.color}`);
     return `
       <button class="${classes}" data-row="${cell.row}" data-col="${cell.col}" style="${styleParts.join(";")}" aria-label="Row ${cell.row + 1}, column ${cell.col + 1}">
         ${cell.clueNumber ? `<span class="num">${cell.clueNumber}</span>` : ""}

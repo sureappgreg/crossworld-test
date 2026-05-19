@@ -597,7 +597,19 @@ input:focus {
 }
 
 .cell.selected-clue {
-  background: #dbeafe;
+  background: color-mix(in srgb, var(--active-color, var(--blue)) 20%, #f8fafc);
+}
+
+.cell.peer-clue {
+  background: color-mix(in srgb, var(--peer-clue-color, var(--blue)) 18%, #f8fafc);
+}
+
+.cell.selected-clue.peer-clue {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--active-color, var(--blue)) 24%, #f8fafc) 0 50%,
+    color-mix(in srgb, var(--peer-clue-color, var(--blue)) 24%, #f8fafc) 50% 100%
+  );
 }
 
 .cell.solved-owner {
@@ -605,24 +617,26 @@ input:focus {
 }
 
 .cell.split-owner {
-  background: linear-gradient(
-    45deg,
-    color-mix(in srgb, var(--solve-color-a) 25%, #f8fafc) 0 49.4%,
-    rgba(255, 255, 255, 0.72) 49.4% 50.6%,
-    color-mix(in srgb, var(--solve-color-b) 25%, #f8fafc) 50.6% 100%
+  background: conic-gradient(
+    from -45deg at 50% 50%,
+    color-mix(in srgb, var(--solve-vertical) 26%, #f8fafc) 0deg 90deg,
+    color-mix(in srgb, var(--solve-horizontal) 26%, #f8fafc) 90deg 180deg,
+    color-mix(in srgb, var(--solve-vertical) 26%, #f8fafc) 180deg 270deg,
+    color-mix(in srgb, var(--solve-horizontal) 26%, #f8fafc) 270deg 360deg
   );
 }
 
 .cell.selected-clue.solved-owner {
-  background: color-mix(in srgb, var(--solve-color-a) 27%, #dbeafe);
+  background: color-mix(in srgb, var(--solve-color-a) 28%, #f8fafc);
 }
 
 .cell.selected-clue.split-owner {
-  background: linear-gradient(
-    45deg,
-    color-mix(in srgb, var(--solve-color-a) 30%, #dbeafe) 0 49.4%,
-    rgba(255, 255, 255, 0.7) 49.4% 50.6%,
-    color-mix(in srgb, var(--solve-color-b) 30%, #dbeafe) 50.6% 100%
+  background: conic-gradient(
+    from -45deg at 50% 50%,
+    color-mix(in srgb, var(--solve-vertical) 31%, #f8fafc) 0deg 90deg,
+    color-mix(in srgb, var(--solve-horizontal) 31%, #f8fafc) 90deg 180deg,
+    color-mix(in srgb, var(--solve-vertical) 31%, #f8fafc) 180deg 270deg,
+    color-mix(in srgb, var(--solve-horizontal) 31%, #f8fafc) 270deg 360deg
   );
 }
 
