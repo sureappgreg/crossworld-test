@@ -2,7 +2,7 @@ TITLE: Sunday Stumper
 AUTHOR: CrossWorld Team
 
 GRID:
-PRACHIG#SOLVER#
+ORBITAL#SOLVER#
 R#E#A#A#O#E#O##
 MOON#PIXEL#NODE
 ION#T#L#I#D#I##
@@ -19,7 +19,7 @@ E#R#E#E#E#Y#I##
 STARRY#ANSWER#S
 
 ACROSS:
-1. PRACHIG - Occupant of 38 S Willow
+1. ORBITAL - Things that circle planets
 5. SOLVER - Player filling the grid
 8. MOON - Night-sky satellite
 10. PIXEL - Tiny unit of a digital image
@@ -43,18 +43,3 @@ ACROSS:
 34. STARRY - Full of tiny lights
 35. ANSWER - What each clue seeks
 
-DOWN:
-1. ORMIATCOLLBATES - Pattern entry through the first column
-2. BEONTRUAGEABARA - Pattern entry through the third column
-3. TA - Short pattern entry
-4. LAILCREICSTANE - Pattern entry through the seventh column
-5. SOEIACDARHMPREN - Pattern entry through the ninth column
-6. LE - Short pattern entry
-7. EOOIOBYK - Pattern entry through the thirteenth column
-9. OOS - Pattern entry near the upper left
-13. TOE - Pattern entry near the upper center
-20. DCADI - Pattern entry in the lower center
-21. AODRL - Pattern entry in the lower right
-25. TWERIR - Pattern entry on the right side
-32. ER - Short lower pattern entry
-33. YW - Short lower pattern entry
