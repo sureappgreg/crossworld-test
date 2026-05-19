@@ -17,6 +17,8 @@ const state = {
   toast: "",
   solvedSeen: new Set(),
   solvedFlash: new Set(),
+  unreadChat: 0,
+  lastMessageCount: 0,
   elapsedNow: Date.now(),
 };
 
@@ -89,6 +91,10 @@ function allClues(room = state.room) {
   return [...room.puzzle.cluesAcross, ...room.puzzle.cluesDown];
 }
 
+function activeClues() {
+  return allClues();
+}
+
 function cellAt(row, col) {
   return state.room?.puzzle.cells.find((cell) => cell.row === row && cell.col === col);
 }
@@ -140,7 +146,19 @@ function setToast(text) {
   }, 2200);
 }
 
+function compactLayout() {
+  return typeof window !== "undefined" && window.matchMedia("(max-width: 1320px)").matches;
+}
+
 function applyRoom(room) {
+  const previousMessageCount = state.room?.messages.length ?? state.lastMessageCount;
+  const nextMessageCount = room.messages.length;
+  if (nextMessageCount > previousMessageCount && state.view === "game") {
+    const chatHidden = state.collapsedChat || (compactLayout() && !state.openChat);
+    if (chatHidden) state.unreadChat += nextMessageCount - previousMessageCount;
+  }
+  state.lastMessageCount = nextMessageCount;
+
   const nextSolved = new Set(allClues(room).filter((clue) => clue.solvedAt).map((clue) => clue.id));
   for (const clueId of nextSolved) {
     if (!state.solvedSeen.has(clueId)) {
@@ -493,7 +511,7 @@ function renderGame() {
         <div class="toolbar">
           <div class="mobile-actions">
             <button class="icon-button" id="toggle-sidebar" title="Players" aria-label="Players">${icon("users")}</button>
-            <button class="icon-button" id="toggle-chat-mobile" title="Chat" aria-label="Chat">${icon("chat")}</button>
+            <button class="icon-button ${state.unreadChat ? "has-unread" : ""}" id="toggle-chat-mobile" title="Chat" aria-label="Chat">${icon("chat")}${state.unreadChat ? '<span class="unread-dot"></span>' : ""}</button>
           </div>
           <button class="ghost" id="exit-lobby">Exit Lobby</button>
         </div>
@@ -502,10 +520,9 @@ function renderGame() {
         ${renderSidebar(stats)}
         <section class="board-zone">
           <div class="board-shell"><div id="board" class="crossword-board" style="--grid-width:${room.puzzle.width || room.puzzle.size};--grid-height:${room.puzzle.height || room.puzzle.size}">${renderBoardCells()}</div></div>
+          ${renderClueCard()}
           <input id="puzzle-keyboard" class="puzzle-keyboard" inputmode="text" autocomplete="off" autocapitalize="characters" aria-label="Puzzle keyboard input" />
-          <div class="lower-panels">
-            ${renderActiveClue()}
-          </div>
+          ${renderMobileKeyboard()}
         </section>
         ${renderClues()}
         ${renderChat()}
@@ -565,11 +582,14 @@ function renderBoardCells() {
       clue.ownerId &&
       clue.cells.some((pos) => pos.row === cell.row && pos.col === cell.col)
     );
-    const acrossOwner = playerById(solvedClues.find((clue) => clue.direction === "across")?.ownerId);
-    const downOwner = playerById(solvedClues.find((clue) => clue.direction === "down")?.ownerId);
+    const acrossClue = solvedClues.find((clue) => clue.direction === "across");
+    const downClue = solvedClues.find((clue) => clue.direction === "down");
+    const acrossOwner = playerById(acrossClue?.ownerId);
+    const downOwner = playerById(downClue?.ownerId);
     const splitOwner = acrossOwner && downOwner && acrossOwner.id !== downOwner.id;
     const singleOwner = splitOwner ? null : (acrossOwner || downOwner);
     const ownedSolved = Boolean(acrossOwner || downOwner);
+    const triangleColors = splitOwner ? solvedTriangleColors(cell, acrossClue, acrossOwner, downClue, downOwner) : null;
     const classes = [
       "cell",
       edgeClass,
@@ -578,7 +598,7 @@ function renderBoardCells() {
       state.active.row === cell.row && state.active.col === cell.col ? "active" : "",
       peer ? "peer" : "",
       singleOwner ? "solved-owner" : "",
-      splitOwner ? "split-owner" : "",
+      splitOwner ? "triangle-owner" : "",
       state.solvedFlash.size && ownedSolved ? "solved" : "",
     ].filter(Boolean).join(" ");
     const styleParts = [];
@@ -586,8 +606,12 @@ function renderBoardCells() {
     if (me) styleParts.push(`--active-color:${me.color}`);
     if (peerCluePlayer) styleParts.push(`--peer-clue-color:${peerCluePlayer.color}`);
     if (singleOwner) styleParts.push(`--solve-color-a:${singleOwner.color}`);
-    if (acrossOwner) styleParts.push(`--solve-horizontal:${acrossOwner.color}`);
-    if (downOwner) styleParts.push(`--solve-vertical:${downOwner.color}`);
+    if (triangleColors) {
+      styleParts.push(`--tri-top:${triangleColors.top}`);
+      styleParts.push(`--tri-right:${triangleColors.right}`);
+      styleParts.push(`--tri-bottom:${triangleColors.bottom}`);
+      styleParts.push(`--tri-left:${triangleColors.left}`);
+    }
     return `
       <button class="${classes}" data-row="${cell.row}" data-col="${cell.col}" style="${styleParts.join(";")}" aria-label="Row ${cell.row + 1}, column ${cell.col + 1}">
         ${cell.clueNumber ? `<span class="num">${cell.clueNumber}</span>` : ""}
@@ -603,14 +627,75 @@ function renderBoardOnly() {
   if (board && state.room) board.innerHTML = renderBoardCells();
 }
 
-function renderActiveClue() {
-  const clue = clueById(state.active.clueId) || state.room.puzzle.cluesAcross[0];
+function clueExtensionTriangles(clue, row, col) {
+  if (!clue || clue.cells.length <= 1) return [];
+  const index = clue.cells.findIndex((cell) => cell.row === row && cell.col === col);
+  if (index < 0) return [];
+  const lastIndex = clue.cells.length - 1;
+  if (clue.direction === "across") {
+    if (index === 0) return ["right"];
+    if (index === lastIndex) return ["left"];
+    return ["left", "right"];
+  }
+  if (index === 0) return ["bottom"];
+  if (index === lastIndex) return ["top"];
+  return ["top", "bottom"];
+}
+
+function solvedTriangleColors(cell, acrossClue, acrossOwner, downClue, downOwner) {
+  const base = "transparent";
+  const colors = { top: base, right: base, bottom: base, left: base };
+  const acrossSides = clueExtensionTriangles(acrossClue, cell.row, cell.col);
+  const downSides = clueExtensionTriangles(downClue, cell.row, cell.col);
+  const acrossColor = colorMix(acrossOwner.color, 30);
+  const downColor = colorMix(downOwner.color, 30);
+
+  for (const side of acrossSides) colors[side] = acrossColor;
+  for (const side of downSides) colors[side] = downColor;
+
+  const unfilled = Object.keys(colors).filter((side) => colors[side] === base);
+  if (unfilled.length) {
+    const fallback = downSides.length > acrossSides.length ? downColor : acrossSides.length > downSides.length ? acrossColor : base;
+    if (fallback !== base) {
+      for (const side of unfilled) colors[side] = fallback;
+    }
+  }
+
+  return colors;
+}
+
+function colorMix(color, amount) {
+  return `color-mix(in srgb, ${color} ${amount}%, #f8fafc)`;
+}
+
+function renderMobileKeyboard() {
+  const rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
   return `
-    <div class="active-clue panel" id="active-clue-card">
-      <div class="meta"><span>${clue.direction}</span><span>${clue.number}</span></div>
-      <p>${escapeHtml(clue.text)}</p>
-      <span class="status">${clue.answer.length} letters${clue.solvedAt ? " - solved" : ""}</span>
-      <input class="mobile-entry-field" inputmode="text" autocomplete="off" autocapitalize="characters" maxlength="1" aria-label="Enter crossword letters" placeholder="Letters" />
+    <div class="mobile-keyboard" aria-label="Mobile crossword keyboard">
+      ${rows.map((row) => `
+        <div class="mobile-keyboard-row">
+          ${row.split("").map((key) => `<button type="button" class="mobile-key" data-key="${key}">${key}</button>`).join("")}
+        </div>
+      `).join("")}
+      <div class="mobile-keyboard-row utility">
+        <button type="button" class="mobile-key wide" data-key="Backspace">Delete</button>
+        <button type="button" class="mobile-key wide" data-key="Enter">Direction</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderClueCard() {
+  const clue = clueById(state.active.clueId) || state.room.puzzle.cluesAcross[0];
+  const direction = clue.direction[0].toUpperCase() + clue.direction.slice(1);
+  return `
+    <div class="clue-card panel" id="clue-card">
+      <button class="clue-card-arrow" id="previous-clue" type="button" aria-label="Previous clue">&lt;</button>
+      <div class="clue-card-content">
+        <strong>${clue.number} ${escapeHtml(direction)}:</strong>
+        <span>${escapeHtml(clue.text)}</span>
+      </div>
+      <button class="clue-card-arrow" id="next-clue" type="button" aria-label="Next clue">&gt;</button>
     </div>
   `;
 }
@@ -640,6 +725,7 @@ function renderClues() {
 }
 
 function renderChat() {
+  const unread = state.unreadChat && (state.collapsedChat || (compactLayout() && !state.openChat));
   const cls = [
     "chat-panel",
     "panel",
@@ -650,7 +736,7 @@ function renderChat() {
     <aside class="${cls}" id="chat">
       <div class="chat-head">
         <p class="section-label" style="margin:0"><span>Chat</span></p>
-        <button class="icon-button" id="toggle-chat" title="Toggle chat" aria-label="Toggle chat">${state.collapsedChat ? icon("chevronDown") : icon("chevronUp")}</button>
+        <button class="icon-button ${unread ? "has-unread" : ""}" id="toggle-chat" title="Toggle chat" aria-label="Toggle chat">${state.collapsedChat ? icon("chevronDown") : icon("chevronUp")}${unread ? '<span class="unread-dot"></span>' : ""}</button>
       </div>
       <div class="chat-body">
         ${state.room.messages.slice(-40).map((message) => {
@@ -684,20 +770,27 @@ function bindGameEvents() {
   board.addEventListener("click", (event) => {
     const button = event.target.closest("[data-row]");
     if (!button || button.classList.contains("black")) return;
-    selectCell(Number(button.dataset.row), Number(button.dataset.col));
+    const row = Number(button.dataset.row);
+    const col = Number(button.dataset.col);
+    if (state.active.row === row && state.active.col === col) {
+      toggleDirection();
+    } else {
+      selectCell(row, col);
+    }
   });
   document.onkeydown = handleKeydown;
   bindClueControls();
   document.querySelector("#toggle-chat").addEventListener("click", () => {
     if (window.matchMedia("(max-width: 1320px)").matches) state.openChat = !state.openChat;
     state.collapsedChat = !state.collapsedChat;
+    if (!state.collapsedChat || state.openChat) state.unreadChat = 0;
     renderGame();
   });
   document.querySelector("#chat-form").addEventListener("submit", sendChat);
   const puzzleInput = document.querySelector("#puzzle-keyboard");
   puzzleInput?.addEventListener("input", handlePuzzleInput);
   puzzleInput?.addEventListener("keydown", handlePuzzleInputKeydown);
-  bindMobileEntryField();
+  bindMobileKeyboard();
   document.querySelector("#exit-lobby").addEventListener("click", leaveRoom);
   document.querySelector("#toggle-sidebar")?.addEventListener("click", () => {
     state.openSidebar = !state.openSidebar;
@@ -706,11 +799,22 @@ function bindGameEvents() {
   document.querySelector("#toggle-chat-mobile")?.addEventListener("click", () => {
     state.openChat = !state.openChat;
     state.collapsedChat = false;
+    if (state.openChat) state.unreadChat = 0;
     renderGame();
   });
 }
 
 function bindClueControls() {
+  bindClueCardControls();
+  bindClueListControls();
+}
+
+function bindClueCardControls() {
+  document.querySelector("#previous-clue")?.addEventListener("click", goToPreviousClue);
+  document.querySelector("#next-clue")?.addEventListener("click", goToNextClue);
+}
+
+function bindClueListControls() {
   document.querySelectorAll("[data-tab]").forEach((button) => {
     button.addEventListener("click", () => {
       state.clueTab = button.dataset.tab;
@@ -724,22 +828,37 @@ function bindClueControls() {
 
 function refreshGameSelection() {
   renderBoardOnly();
-  const activeClueCard = document.querySelector("#active-clue-card");
-  if (activeClueCard) {
-    activeClueCard.outerHTML = renderActiveClue();
-    bindMobileEntryField();
+  const clueCard = document.querySelector("#clue-card");
+  if (clueCard) {
+    clueCard.outerHTML = renderClueCard();
+    bindClueCardControls();
   }
   const cluesPanel = document.querySelector(".clues-panel");
   if (cluesPanel) {
     cluesPanel.outerHTML = renderClues();
-    bindClueControls();
+    bindClueListControls();
   }
 }
 
-function bindMobileEntryField() {
-  const field = document.querySelector(".mobile-entry-field");
-  field?.addEventListener("input", handlePuzzleInput);
-  field?.addEventListener("keydown", handlePuzzleInputKeydown);
+function bindMobileKeyboard() {
+  document.querySelectorAll("[data-key]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.key;
+      if (/^[A-Z]$/.test(key)) {
+        updateCell(key);
+      } else if (key === "Backspace") {
+        const current = cellAt(state.active.row, state.active.col);
+        if (current?.value) {
+          updateCell("");
+        } else {
+          moveBy(-1);
+          updateCell("");
+        }
+      } else if (key === "Enter") {
+        toggleDirection();
+      }
+    });
+  });
 }
 
 function isTypingInInput(event) {
@@ -771,6 +890,15 @@ function handleKeydown(event) {
     toggleDirection();
     return;
   }
+  if (key === "Tab") {
+    event.preventDefault();
+    if (event.shiftKey) {
+      goToPreviousClue();
+    } else {
+      goToNextClue();
+    }
+    return;
+  }
   const arrows = {
     ArrowLeft: [0, -1, "across"],
     ArrowRight: [0, 1, "across"],
@@ -798,12 +926,32 @@ function selectCell(row, col, direction = state.active.direction) {
 function selectClue(clueId) {
   const clue = clueById(clueId);
   if (!clue) return;
-  const firstEmpty = clue.cells.find((pos) => !cellAt(pos.row, pos.col).value) || clue.cells[0];
-  state.active = { row: firstEmpty.row, col: firstEmpty.col, direction: clue.direction, clueId: clue.id };
+  activateClue(clue);
+}
+
+function activateClue(clue) {
+  const first = clue.cells[0];
+  state.active = { row: first.row, col: first.col, direction: clue.direction, clueId: clue.id };
   state.clueTab = clue.direction;
   postCursor();
   refreshGameSelection();
   focusPuzzleKeyboard();
+}
+
+function goToClueOffset(offset) {
+  const clues = activeClues();
+  if (!clues.length) return;
+  const currentIndex = Math.max(0, clues.findIndex((clue) => clue.id === state.active.clueId));
+  const nextIndex = (currentIndex + offset + clues.length) % clues.length;
+  activateClue(clues[nextIndex]);
+}
+
+function goToPreviousClue() {
+  goToClueOffset(-1);
+}
+
+function goToNextClue() {
+  goToClueOffset(1);
 }
 
 function focusPuzzleKeyboard() {
@@ -832,6 +980,13 @@ function handlePuzzleInputKeydown(event) {
   } else if (event.key === "Enter" || event.key === " ") {
     event.preventDefault();
     toggleDirection();
+  } else if (event.key === "Tab") {
+    event.preventDefault();
+    if (event.shiftKey) {
+      goToPreviousClue();
+    } else {
+      goToNextClue();
+    }
   } else if (event.key === "ArrowLeft") {
     event.preventDefault();
     state.active.direction = "across";

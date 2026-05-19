@@ -1,4 +1,6 @@
 :root {
+  --app-font: ".NYT Imperial", "NYT Imperial", Georgia, "Times New Roman", serif;
+  --puzzle-font: "IBM Plex Sans", Inter, sans-serif;
   --bg: #081225;
   --bg-2: #0d1b34;
   --panel: rgba(10, 24, 48, 0.86);
@@ -32,7 +34,7 @@ body {
     radial-gradient(circle at 80% 15%, rgba(74, 222, 128, 0.08), transparent 24rem),
     linear-gradient(135deg, var(--bg), var(--bg-2) 48%, #091427);
   color: var(--text);
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--app-font);
   overflow-x: hidden;
 }
 
@@ -56,7 +58,7 @@ button {
   align-items: center;
   gap: 12px;
   color: var(--text);
-  font-family: "Space Grotesk", Inter, sans-serif;
+  font-family: var(--app-font);
   font-size: 21px;
   font-weight: 700;
   letter-spacing: 0;
@@ -172,7 +174,7 @@ button {
 h1,
 h2,
 h3 {
-  font-family: "Space Grotesk", Inter, sans-serif;
+  font-family: var(--app-font);
   letter-spacing: 0;
   margin: 0;
 }
@@ -364,7 +366,7 @@ input:focus {
 }
 
 .code {
-  font-family: "Space Grotesk", Inter, sans-serif;
+  font-family: var(--app-font);
   font-size: 26px;
   letter-spacing: .12em;
 }
@@ -398,6 +400,7 @@ input:focus {
 }
 
 .icon-button {
+  position: relative;
   width: 42px;
   min-height: 42px;
   padding: 0;
@@ -407,6 +410,18 @@ input:focus {
   border: 1px solid var(--line);
   display: inline-grid;
   place-items: center;
+}
+
+.unread-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 2px solid #081225;
+  box-shadow: 0 0 12px rgba(239, 68, 68, .75);
 }
 
 .icon-button svg,
@@ -430,7 +445,7 @@ input:focus {
 .sidebar,
 .clues-panel,
 .chat-panel,
-.active-clue,
+.clue-card,
 .results-card {
   padding: 16px;
 }
@@ -500,7 +515,7 @@ input:focus {
 }
 
 .score {
-  font-family: "Space Grotesk", Inter, sans-serif;
+  font-family: var(--app-font);
   font-size: 22px;
   color: var(--player-color, var(--blue));
   font-weight: 800;
@@ -515,7 +530,7 @@ input:focus {
 
 .meter strong {
   display: block;
-  font-family: "Space Grotesk", Inter, sans-serif;
+  font-family: var(--app-font);
   font-size: 42px;
   margin-bottom: 10px;
 }
@@ -568,7 +583,7 @@ input:focus {
   color: #101827;
   display: grid;
   place-items: center;
-  font-family: "IBM Plex Sans", Inter, sans-serif;
+  font-family: var(--puzzle-font);
   font-size: clamp(16px, 2.1vw, 28px);
   line-height: 1;
   font-weight: 600;
@@ -590,7 +605,7 @@ input:focus {
   position: absolute;
   top: 2px;
   left: 3px;
-  font-family: Inter, sans-serif;
+  font-family: var(--puzzle-font);
   font-size: 9px;
   color: #1f2937;
   font-weight: 800;
@@ -616,13 +631,13 @@ input:focus {
   background: color-mix(in srgb, var(--solve-color-a) 22%, #f8fafc);
 }
 
-.cell.split-owner {
+.cell.triangle-owner {
   background: conic-gradient(
     from -45deg at 50% 50%,
-    color-mix(in srgb, var(--solve-vertical) 26%, #f8fafc) 0deg 90deg,
-    color-mix(in srgb, var(--solve-horizontal) 26%, #f8fafc) 90deg 180deg,
-    color-mix(in srgb, var(--solve-vertical) 26%, #f8fafc) 180deg 270deg,
-    color-mix(in srgb, var(--solve-horizontal) 26%, #f8fafc) 270deg 360deg
+    var(--tri-top, transparent) 0deg 90deg,
+    var(--tri-right, transparent) 90deg 180deg,
+    var(--tri-bottom, transparent) 180deg 270deg,
+    var(--tri-left, transparent) 270deg 360deg
   );
 }
 
@@ -630,13 +645,13 @@ input:focus {
   background: color-mix(in srgb, var(--solve-color-a) 28%, #f8fafc);
 }
 
-.cell.selected-clue.split-owner {
+.cell.selected-clue.triangle-owner {
   background: conic-gradient(
     from -45deg at 50% 50%,
-    color-mix(in srgb, var(--solve-vertical) 31%, #f8fafc) 0deg 90deg,
-    color-mix(in srgb, var(--solve-horizontal) 31%, #f8fafc) 90deg 180deg,
-    color-mix(in srgb, var(--solve-vertical) 31%, #f8fafc) 180deg 270deg,
-    color-mix(in srgb, var(--solve-horizontal) 31%, #f8fafc) 270deg 360deg
+    var(--tri-top, transparent) 0deg 90deg,
+    var(--tri-right, transparent) 90deg 180deg,
+    var(--tri-bottom, transparent) 180deg 270deg,
+    var(--tri-left, transparent) 270deg 360deg
   );
 }
 
@@ -761,27 +776,58 @@ input:focus {
   border: 1px solid var(--player-color);
 }
 
-.active-clue {
-  min-height: 140px;
+.clue-card {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px;
+  gap: 14px;
+  align-items: center;
+  min-height: 76px;
 }
 
-.active-clue .meta {
-  color: var(--muted);
-  font-weight: 800;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  font-size: 12px;
+.clue-card-arrow {
+  width: 48px;
+  min-height: 48px;
+  border-radius: 50%;
+  color: var(--text);
+  background: rgba(255,255,255,.08);
+  border: 1px solid var(--line);
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.clue-card-arrow:hover {
+  transform: translateY(-1px);
+  background: rgba(59, 130, 246, .16);
+  border-color: rgba(59, 130, 246, .55);
+}
+
+.clue-card-content {
+  min-width: 0;
   display: flex;
-  gap: 12px;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text);
+  text-align: center;
+  line-height: 1.35;
 }
 
-.active-clue p {
-  font-size: 18px;
-  line-height: 1.45;
-  margin: 18px 0 8px;
+.clue-card-content strong {
+  flex: 0 0 auto;
+  font-family: var(--app-font);
+  font-size: 15px;
+  text-transform: capitalize;
 }
 
-.mobile-entry-field {
+.clue-card-content span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 16px;
+}
+
+.mobile-keyboard {
   display: none;
 }
 
@@ -1028,13 +1074,70 @@ input:focus {
     min-width: min(680px, 92vw);
   }
 
-  .mobile-entry-field {
-    display: block;
-    margin-top: 16px;
-    max-width: 150px;
-    text-align: center;
-    text-transform: uppercase;
-    letter-spacing: .16em;
+  .clue-card {
+    grid-template-columns: 56px minmax(0, 1fr) 56px;
+    gap: 10px;
+    min-height: 86px;
+    padding: 12px;
+  }
+
+  .clue-card-arrow {
+    width: 56px;
+    min-height: 56px;
+    font-size: 26px;
+  }
+
+  .clue-card-content {
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .clue-card-content span {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    font-size: 15px;
+    overflow-wrap: anywhere;
+  }
+
+  .mobile-keyboard {
+    position: sticky;
+    bottom: 0;
+    z-index: 12;
+    display: grid;
+    gap: 7px;
+    padding: 10px 6px calc(10px + env(safe-area-inset-bottom));
+    margin: 4px -2px 0;
+    border-top: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(8,18,37,.86), rgba(8,18,37,.98));
+    backdrop-filter: blur(14px);
+  }
+
+  .mobile-keyboard-row {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .mobile-key {
+    min-width: 0;
+    flex: 1;
+    max-width: 38px;
+    min-height: 38px;
+    border-radius: 10px;
+    color: var(--text);
+    background: rgba(255,255,255,.10);
+    border: 1px solid rgba(255,255,255,.14);
+    font-size: 13px;
+    font-weight: 800;
+    box-shadow: 0 8px 22px rgba(0,0,0,.18);
+  }
+
+  .mobile-key.wide {
+    max-width: 132px;
+    flex-basis: 120px;
   }
 }
 
