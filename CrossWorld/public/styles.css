@@ -28,6 +28,8 @@ body,
   height: 100%;
   min-height: 100%;
   margin: 0;
+  overscroll-behavior: none;
+  touch-action: manipulation;
 }
 
 body {
@@ -35,6 +37,7 @@ body {
   color: var(--text);
   font-family: var(--app-font);
   overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 
 body.game-mode {
@@ -54,6 +57,8 @@ input {
 button {
   border: 0;
   cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
 }
 
 .app-shell {
@@ -62,6 +67,7 @@ button {
 }
 
 .game-screen {
+  --chat-width: 300px;
   height: 100dvh;
   min-height: 100dvh;
   display: grid;
@@ -498,15 +504,16 @@ input:focus {
 
 .game-grid {
   display: grid;
-  grid-template-columns: 220px minmax(440px, 1fr) minmax(260px, 300px);
+  grid-template-columns: 220px minmax(0, 1fr);
   gap: 16px;
   align-items: stretch;
   min-height: 0;
   overflow: hidden;
+  padding-right: calc(var(--chat-width) + 16px);
 }
 
 .game-grid.clue-list-open {
-  grid-template-columns: 220px minmax(440px, 1fr) 300px minmax(260px, 300px);
+  grid-template-columns: 220px minmax(0, 1fr) 300px;
 }
 
 .sidebar,
@@ -635,10 +642,13 @@ input:focus {
   display: grid;
   place-items: center;
   min-height: 0;
+  container-type: size;
 }
 
 .crossword-board {
   width: min(100%, 720px);
+  width: min(100cqw, 100cqh, 720px);
+  height: min(100cqw, 100cqh, 720px);
   aspect-ratio: 1;
   display: grid;
   grid-template-columns: repeat(var(--grid-width, 15), 1fr);
@@ -922,10 +932,18 @@ input:focus {
 }
 
 .chat-panel {
-  height: 100%;
+  position: fixed;
+  top: 80px;
+  right: 16px;
+  bottom: 14px;
+  z-index: 34;
+  width: var(--chat-width, 300px);
   min-height: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .chat-panel.collapsed {
@@ -1089,24 +1107,27 @@ input:focus {
 
 @media (max-width: 1320px) {
   .game-grid {
-    grid-template-columns: 220px minmax(440px, 1fr) 310px;
+    grid-template-columns: 220px minmax(0, 1fr);
+    padding-right: 0;
   }
 
   .game-grid.clue-list-open {
-    grid-template-columns: 220px minmax(440px, 1fr) minmax(280px, 310px);
+    grid-template-columns: 220px minmax(0, 1fr) minmax(280px, 310px);
   }
 
   .chat-panel {
-    position: fixed;
     inset: 88px 18px 18px auto;
     width: min(360px, calc(100vw - 36px));
     z-index: 10;
     transform: translateX(calc(100% + 28px));
+    opacity: 1;
+    pointer-events: none;
     transition: transform 220ms ease;
   }
 
   .chat-panel.open {
     transform: translateX(0);
+    pointer-events: auto;
   }
 
   .mobile-actions {
@@ -1135,6 +1156,7 @@ input:focus {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(0, 1fr);
     gap: 0;
+    padding-right: 0;
   }
 
   .login-form {
@@ -1291,7 +1313,8 @@ input:focus {
   }
 
   .crossword-board {
-    width: min(100%, 680px, max(240px, calc(100svh - 390px)));
+    width: min(100cqw, 100cqh);
+    height: min(100cqw, 100cqh);
     min-width: 0;
   }
 
