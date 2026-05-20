@@ -20,6 +20,7 @@ const state = {
   solvedFlash: new Set(),
   unreadChat: 0,
   lastMessageCount: 0,
+  preserveChatFocus: false,
   elapsedNow: Date.now(),
 };
 
@@ -153,9 +154,13 @@ function compactLayout() {
   return typeof window !== "undefined" && window.matchMedia("(max-width: 1320px)").matches;
 }
 
-function applyRoom(room) {
+function applyRoom(room, eventType = "STATE") {
+  if (chatIsVisible() && document.activeElement?.id === "chat-input") {
+    state.preserveChatFocus = true;
+  }
   const previousMessageCount = state.room?.messages.length ?? state.lastMessageCount;
   const nextMessageCount = room.messages.length;
+  const chatMessageOnly = eventType === "CHAT_MESSAGE" && state.view === "game" && state.room?.status === "playing" && room.status === "playing";
   if (nextMessageCount > previousMessageCount && state.view === "game") {
     const chatHidden = state.collapsedChat || (compactLayout() && !state.openChat);
     if (chatHidden) state.unreadChat += nextMessageCount - previousMessageCount;
@@ -185,6 +190,11 @@ function applyRoom(room) {
   } else {
     state.view = "lobby";
   }
+  if (chatMessageOnly && chatIsVisible()) {
+    renderChatMessagesOnly();
+    scrollChatToLatest();
+    return;
+  }
   render();
 }
 
@@ -204,7 +214,7 @@ function openStream(code, playerId) {
     "GAME_COMPLETED",
   ];
   for (const event of updateEvents) {
-    state.stream.addEventListener(event, (message) => applyRoom(JSON.parse(message.data)));
+    state.stream.addEventListener(event, (message) => applyRoom(JSON.parse(message.data), event));
   }
   state.stream.onerror = () => setToast("Reconnecting to lobby...");
 }
@@ -532,7 +542,13 @@ function renderGame() {
   `;
   bindGameEvents();
   renderToast();
-  if (chatIsVisible()) scrollChatToLatest();
+  if (chatIsVisible()) {
+    scrollChatToLatest();
+    if (state.preserveChatFocus) {
+      state.preserveChatFocus = false;
+      focusChatInput();
+    }
+  }
 }
 
 function renderGameChromeOnly() {
@@ -741,26 +757,33 @@ function renderChat() {
         <p class="section-label" style="margin:0"><span>Chat</span></p>
         <button class="icon-button ${unread ? "has-unread" : ""}" id="toggle-chat" title="Toggle chat" aria-label="Toggle chat">${state.collapsedChat ? icon("chevronDown") : icon("chevronUp")}${unread ? '<span class="unread-dot"></span>' : ""}</button>
       </div>
-      <div class="chat-body">
-        ${state.room.messages.slice(-40).map((message) => {
-          const player = playerById(message.playerId) || { username: "Player", color: "#B8C2D6", avatarStyle: "rgba(255,255,255,.14)" };
-          return `
-            <article class="message" style="--player-color:${player.color}">
-              ${avatar(player)}
-              <div>
-                <div class="message-meta"><strong>${escapeHtml(player.username)}</strong><span>${timeLabel(message.at)}</span></div>
-                <p>${escapeHtml(message.text)}</p>
-              </div>
-            </article>
-          `;
-        }).join("") || `<p class="lede">No messages yet.</p>`}
-      </div>
+      <div class="chat-body">${renderChatMessages()}</div>
       <form class="chat-form" id="chat-form">
         <input id="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" inputmode="text" />
         <button class="primary" type="submit" aria-label="Send">${icon("send")}</button>
       </form>
     </aside>
   `;
+}
+
+function renderChatMessages() {
+  return state.room.messages.slice(-40).map((message) => {
+    const player = playerById(message.playerId) || { username: "Player", color: "#B8C2D6", avatarStyle: "rgba(255,255,255,.14)" };
+    return `
+      <article class="message" style="--player-color:${player.color}">
+        ${avatar(player)}
+        <div>
+          <div class="message-meta"><strong>${escapeHtml(player.username)}</strong><span>${timeLabel(message.at)}</span></div>
+          <p>${escapeHtml(message.text)}</p>
+        </div>
+      </article>
+    `;
+  }).join("") || `<p class="lede">No messages yet.</p>`;
+}
+
+function renderChatMessagesOnly() {
+  const body = document.querySelector(".chat-body");
+  if (body && state.room) body.innerHTML = renderChatMessages();
 }
 
 function bindGameEvents() {
@@ -791,7 +814,13 @@ function bindGameEvents() {
     renderGame();
     if (state.openChat || !state.collapsedChat) focusChatInput();
   });
-  document.querySelector("#chat-form").addEventListener("submit", sendChat);
+  const chatForm = document.querySelector("#chat-form");
+  chatForm.addEventListener("submit", sendChat);
+  document.querySelector("#chat-form button")?.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    state.preserveChatFocus = true;
+    chatForm.requestSubmit();
+  });
   const puzzleInput = document.querySelector("#puzzle-keyboard");
   puzzleInput?.addEventListener("input", handlePuzzleInput);
   puzzleInput?.addEventListener("keydown", handlePuzzleInputKeydown);
@@ -1105,12 +1134,16 @@ async function sendChat(event) {
   const input = document.querySelector("#chat-input");
   const text = input.value.trim();
   if (!text) return;
+  state.preserveChatFocus = true;
   input.value = "";
+  focusChatInput();
   try {
     await api("/api/chat", { code: state.room.code, playerId: state.playerId, text });
     focusChatInput();
   } catch (error) {
+    state.preserveChatFocus = false;
     setToast(error.message);
+    focusChatInput();
   }
 }
 
