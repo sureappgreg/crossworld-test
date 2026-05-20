@@ -24,19 +24,7 @@ const state = {
 };
 
 initViewportController();
-
-if (state.user) {
-  state.view = "home";
-  const session = loadJson(STORAGE_SESSION);
-  if (session?.code && session?.playerId) {
-    state.playerId = session.playerId;
-    joinExistingSession(session.code, session.playerId);
-  } else {
-    render();
-  }
-} else {
-  render();
-}
+render();
 
 setInterval(() => {
   state.elapsedNow = Date.now();
@@ -255,10 +243,10 @@ function renderLogin() {
     <main class="login-screen">
       <section class="login-card panel">
         <div class="login-form">
-          <div class="brand"><span class="logo-mark"></span> CrossWorld</div>
           <p class="kicker">Welcome to</p>
           <h1>CrossWorld</h1>
           <p class="lede">Connect, collaborate, compete!</p>
+          <img class="welcome-art" src="/assets/light-logo.png" alt="" aria-hidden="true" />
           <form id="login-form" class="input-stack">
             <label class="field">Username<input id="username" required maxlength="24" autocomplete="nickname" value="You" /></label>
             <label class="field">Email<input id="email" type="email" required autocomplete="email" value="you@crossworld.test" /></label>
@@ -268,14 +256,6 @@ function renderLogin() {
           <div class="provider-row">
             <button class="secondary" data-provider="google">Google</button>
             <button class="secondary" data-provider="demo">Demo Guest</button>
-          </div>
-        </div>
-        <div class="sphere-stage" aria-hidden="true">
-          ${[...Array(18)].map((_, index) => `<span class="star" style="left:${8 + ((index * 29) % 84)}%;top:${8 + ((index * 47) % 70)}%"></span>`).join("")}
-          <div class="crossword-sphere"></div>
-          <div class="sphere-copy">
-            <h2>One puzzle. Every cursor alive.</h2>
-            <p class="lede">Create a private room, invite up to three teammates, and solve in sync.</p>
           </div>
         </div>
       </section>
