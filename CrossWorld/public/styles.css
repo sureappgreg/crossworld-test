@@ -930,11 +930,15 @@ input:focus {
 }
 
 .chat-body {
-  display: grid;
-  align-content: end;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
-  overflow: auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 16px 0;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .message {
@@ -1133,6 +1137,109 @@ input:focus {
     grid-template-columns: 1fr;
   }
 
+  .home-shell,
+  .ready-shell {
+    height: 100dvh;
+    min-height: 100dvh;
+    overflow: hidden;
+    padding: 8px;
+  }
+
+  .home-lobby,
+  .ready-lobby {
+    min-height: 0;
+    height: calc(100dvh - 16px);
+    align-content: start;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .home-lobby .lobby-hero,
+  .home-lobby .lobby-card,
+  .ready-lobby .lobby-hero,
+  .ready-lobby .lobby-card {
+    padding: 16px;
+  }
+
+  .home-lobby .lobby-hero,
+  .ready-lobby .lobby-hero {
+    min-height: 0;
+    justify-content: start;
+    gap: 12px;
+  }
+
+  .home-lobby .lobby-hero::after,
+  .ready-lobby .lobby-hero::after {
+    display: none;
+  }
+
+  .home-lobby .kicker,
+  .ready-lobby .kicker {
+    margin: 0 0 8px;
+  }
+
+  .home-lobby .lobby-title h1,
+  .ready-lobby .lobby-title h1 {
+    font-size: clamp(28px, 8vw, 40px);
+    line-height: 1.02;
+  }
+
+  .home-lobby .lede,
+  .ready-lobby .lede {
+    margin: 8px 0 12px;
+    line-height: 1.35;
+    font-size: 13px;
+  }
+
+  .home-lobby .lobby-actions,
+  .ready-lobby .lobby-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .home-lobby .lobby-card h2 {
+    font-size: 20px;
+  }
+
+  .home-lobby .input-stack {
+    gap: 8px;
+  }
+
+  .ready-lobby .room-code {
+    margin: 10px 0;
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .ready-lobby .code {
+    font-size: 21px;
+  }
+
+  .ready-lobby .player-list {
+    gap: 9px;
+  }
+
+  .ready-lobby .player-row {
+    grid-template-columns: 34px 1fr auto;
+    gap: 9px;
+  }
+
+  .ready-lobby .avatar {
+    width: 34px;
+    height: 34px;
+    font-size: 12px;
+  }
+
+  .ready-lobby .meter {
+    margin: 12px 0;
+    padding: 12px 0;
+  }
+
+  .ready-lobby .meter strong {
+    font-size: 24px;
+    margin-bottom: 4px;
+  }
+
   .game-grid,
   .game-grid.clue-list-open {
     grid-template-columns: 1fr;
@@ -1241,13 +1348,13 @@ input:focus {
     position: fixed;
     left: 14px;
     right: 14px;
-    top: calc(70px + var(--visual-offset-top, 0px) + 8px);
-    bottom: calc(var(--keyboard-height, 0px) + max(10px, env(safe-area-inset-bottom)));
+    top: 78px;
+    bottom: auto;
     z-index: 34;
     width: auto;
-    height: auto;
-    max-height: none;
-    min-height: 0;
+    height: clamp(280px, calc(var(--game-height, 100dvh) - 390px), 430px);
+    max-height: calc(var(--game-height, 100dvh) - 96px);
+    min-height: 260px;
     transform: translateY(14px) scale(.98);
     opacity: 0;
     pointer-events: none;
@@ -1258,7 +1365,7 @@ input:focus {
     transform: translateY(0) scale(1);
     opacity: 1;
     pointer-events: auto;
-    bottom: calc(var(--keyboard-height, 0px) + max(10px, env(safe-area-inset-bottom)));
+    bottom: auto;
   }
 
   .chat-panel.collapsed {

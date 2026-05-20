@@ -302,10 +302,9 @@ function cryptoId(prefix) {
 
 function renderHome() {
   app.innerHTML = `
-    <main class="app-shell">
-      <section class="lobby-wrap">
+    <main class="app-shell home-shell">
+      <section class="lobby-wrap home-lobby">
         <div class="lobby-hero panel">
-          <div class="brand"><span class="logo-mark"></span> CrossWorld</div>
           <div class="lobby-title">
             <p class="kicker">Private multiplayer crossword</p>
             <h1>Start a room, solve together.</h1>
@@ -420,10 +419,9 @@ function renderLobby() {
   const canStart = isHost && room.players.every((player) => player.id === room.hostId || player.ready);
   const puzzleSize = `${room.puzzle.width || room.puzzle.size}x${room.puzzle.height || room.puzzle.size}`;
   app.innerHTML = `
-    <main class="app-shell">
-      <section class="lobby-wrap">
+    <main class="app-shell ready-shell">
+      <section class="lobby-wrap ready-lobby">
         <div class="lobby-hero panel">
-          <div class="brand"><span class="logo-mark"></span> CrossWorld</div>
           <div class="lobby-title">
             <p class="kicker">Lobby</p>
             <h1>${escapeHtml(room.puzzle.title)}</h1>
@@ -534,6 +532,7 @@ function renderGame() {
   `;
   bindGameEvents();
   renderToast();
+  if (chatIsVisible()) scrollChatToLatest();
 }
 
 function renderGameChromeOnly() {
@@ -1116,17 +1115,28 @@ async function sendChat(event) {
 }
 
 function focusChatInput() {
-  const focus = () => {
-    updateViewportVars();
-    const input = document.querySelector("#chat-input");
-    if (!input || input.closest(".chat-panel.collapsed")) return;
-    input.focus({ preventScroll: true });
-    keepGamePinned();
-    updateViewportVars();
+  freezeGameHeight();
+  const input = document.querySelector("#chat-input");
+  if (!input || input.closest(".chat-panel.collapsed")) return;
+  scrollChatToLatest();
+  input.focus({ preventScroll: true });
+  keepGamePinned();
+  setTimeout(keepGamePinned, 80);
+}
+
+function chatIsVisible() {
+  return state.view === "game" && !state.collapsedChat && (!compactLayout() || state.openChat);
+}
+
+function scrollChatToLatest() {
+  const body = document.querySelector(".chat-body");
+  if (!body) return;
+  const scroll = () => {
+    body.scrollTop = body.scrollHeight;
   };
-  focus();
-  setTimeout(focus, 50);
-  setTimeout(focus, 250);
+  scroll();
+  requestAnimationFrame(scroll);
+  setTimeout(scroll, 60);
 }
 
 function initViewportController() {
