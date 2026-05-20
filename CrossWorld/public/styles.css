@@ -42,6 +42,10 @@ body {
 
 body.game-mode {
   overflow: hidden;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: var(--game-height, 100dvh);
 }
 
 body.game-mode #app {
@@ -1291,7 +1295,7 @@ input:focus {
     z-index: 34;
     width: auto;
     height: auto;
-    max-height: calc(var(--visual-height, 100dvh) - 92px - var(--keyboard-height, 0px));
+    max-height: none;
     min-height: 0;
     transform: translateY(14px) scale(.98);
     opacity: 0;

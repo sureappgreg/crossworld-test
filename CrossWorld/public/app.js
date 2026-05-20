@@ -258,7 +258,7 @@ function renderLogin() {
           <div class="brand"><span class="logo-mark"></span> CrossWorld</div>
           <p class="kicker">Welcome to</p>
           <h1>CrossWorld</h1>
-          <p class="lede">Collaborative crosswords with live cursors, clue ownership, lobby chat, and a calm premium workspace for friends.</p>
+          <p class="lede">Connect, collaborate, compete!</p>
           <form id="login-form" class="input-stack">
             <label class="field">Username<input id="username" required maxlength="24" autocomplete="nickname" value="You" /></label>
             <label class="field">Email<input id="email" type="email" required autocomplete="email" value="you@crossworld.test" /></label>
@@ -520,7 +520,7 @@ async function leaveRoom() {
 function renderGame() {
   const room = state.room;
   const stats = progress(room);
-  document.documentElement.style.setProperty("--game-height", `${window.innerHeight}px`);
+  freezeGameHeight();
   app.innerHTML = `
     <main class="app-shell game-screen ${state.openChat ? "chat-open" : ""}">
       <header class="topbar">
@@ -1160,7 +1160,11 @@ function initViewportController() {
 function updateViewportVars() {
   const root = document.documentElement;
   const viewport = window.visualViewport;
-  const layoutHeight = window.innerHeight || viewport?.height || 0;
+  const currentGameHeight = parseFloat(getComputedStyle(root).getPropertyValue("--game-height")) || 0;
+  const measuredLayoutHeight = window.innerHeight || viewport?.height || 0;
+  const layoutHeight = state.openChat && state.view === "game"
+    ? (currentGameHeight || measuredLayoutHeight)
+    : measuredLayoutHeight;
   const visualHeight = viewport?.height || layoutHeight;
   const offsetTop = viewport?.offsetTop || 0;
   const keyboardHeight = Math.max(0, layoutHeight - visualHeight - offsetTop);
@@ -1175,6 +1179,14 @@ function keepGamePinned() {
   if (state.view !== "game") return;
   document.scrollingElement?.scrollTo?.(0, 0);
   window.scrollTo(0, 0);
+}
+
+function freezeGameHeight() {
+  const root = document.documentElement;
+  const current = parseFloat(getComputedStyle(root).getPropertyValue("--game-height")) || 0;
+  const measured = window.innerHeight || window.visualViewport?.height || current;
+  const next = state.openChat && current ? current : measured;
+  root.style.setProperty("--game-height", `${next}px`);
 }
 
 function renderResults() {
