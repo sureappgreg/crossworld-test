@@ -518,7 +518,7 @@ function renderGame() {
   const room = state.room;
   const stats = progress(room);
   app.innerHTML = `
-    <main class="app-shell game-screen">
+    <main class="app-shell game-screen ${state.openChat ? "chat-open" : ""}">
       <header class="topbar">
         <button class="back-button" id="back-button" type="button" aria-label="Back">${icon("back")}<span>Back</span></button>
         <div class="game-title">
@@ -687,13 +687,14 @@ function colorMix(color, amount) {
 }
 
 function renderMobileKeyboard() {
+  const chatMode = state.openChat && compactLayout();
   const rows = ["QWERTYUIOP", "ASDFGHJKL"];
   return `
-    <div class="mobile-keyboard" aria-label="Mobile crossword keyboard">
+    <div class="mobile-keyboard ${chatMode ? "chat-keyboard" : ""}" aria-label="${chatMode ? "Mobile chat keyboard" : "Mobile crossword keyboard"}">
       ${rows.map((row) => `
-        <div class="mobile-keyboard-row ${row === "ASDFGHJKL" ? "with-list" : ""}">
+        <div class="mobile-keyboard-row ${row === "ASDFGHJKL" ? (chatMode ? "letters-9" : "with-list") : ""}">
           ${row.split("").map((key) => `<button type="button" class="mobile-key" data-key="${key}">${key}</button>`).join("")}
-          ${row === "ASDFGHJKL" ? '<button type="button" class="mobile-key utility-list" data-key="List">List</button>' : ""}
+          ${row === "ASDFGHJKL" && !chatMode ? '<button type="button" class="mobile-key utility-list" data-key="List">List</button>' : ""}
         </div>
       `).join("")}
       <div class="mobile-keyboard-row utility">
@@ -701,6 +702,7 @@ function renderMobileKeyboard() {
         ${"ZXCVBNM".split("").map((key) => `<button type="button" class="mobile-key" data-key="${key}">${key}</button>`).join("")}
         <button type="button" class="mobile-key utility-delete" data-key="Backspace">←</button>
       </div>
+      ${chatMode ? '<div class="mobile-keyboard-row chat-space-row"><button type="button" class="mobile-key utility-space" data-key="Space">Space</button></div>' : ""}
     </div>
   `;
 }
@@ -746,6 +748,7 @@ function renderClues() {
 
 function renderChat() {
   const unread = state.unreadChat && (state.collapsedChat || (compactLayout() && !state.openChat));
+  const mobileChat = compactLayout();
   const cls = [
     "chat-panel",
     "panel",
@@ -773,7 +776,7 @@ function renderChat() {
         }).join("") || `<p class="lede">No messages yet.</p>`}
       </div>
       <form class="chat-form" id="chat-form">
-        <input id="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" />
+        <input id="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" inputmode="${mobileChat ? "none" : "text"}" ${mobileChat ? "readonly" : ""} />
         <button class="primary" type="submit" aria-label="Send">${icon("send")}</button>
       </form>
     </aside>
@@ -866,6 +869,10 @@ function bindMobileKeyboard() {
   document.querySelectorAll("[data-key]").forEach((button) => {
     button.addEventListener("click", () => {
       const key = button.dataset.key;
+      if (state.openChat && compactLayout()) {
+        handleChatKeyboardKey(key);
+        return;
+      }
       if (/^[A-Z]$/.test(key)) {
         updateCell(key);
       } else if (key === "Backspace") {
@@ -884,6 +891,20 @@ function bindMobileKeyboard() {
       }
     });
   });
+}
+
+function handleChatKeyboardKey(key) {
+  const input = document.querySelector("#chat-input");
+  if (!input) return;
+  if (/^[A-Z]$/.test(key)) {
+    input.value = `${input.value}${key}`;
+  } else if (key === "Space") {
+    input.value = `${input.value} `;
+  } else if (key === "Backspace") {
+    input.value = input.value.slice(0, -1);
+  }
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  focusChatInput();
 }
 
 function isTypingInInput(event) {
