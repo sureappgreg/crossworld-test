@@ -23,6 +23,8 @@ const state = {
   elapsedNow: Date.now(),
 };
 
+initViewportController();
+
 if (state.user) {
   state.view = "home";
   const session = loadJson(STORAGE_SESSION);
@@ -240,6 +242,7 @@ async function joinExistingSession(code, playerId) {
 
 function render() {
   document.body.classList.toggle("game-mode", state.view === "game");
+  updateViewportVars();
   if (!state.user || state.view === "login") return renderLogin();
   if (state.view === "home") return renderHome();
   if (state.view === "lobby") return renderLobby();
@@ -517,6 +520,7 @@ async function leaveRoom() {
 function renderGame() {
   const room = state.room;
   const stats = progress(room);
+  document.documentElement.style.setProperty("--game-height", `${window.innerHeight}px`);
   app.innerHTML = `
     <main class="app-shell game-screen ${state.openChat ? "chat-open" : ""}">
       <header class="topbar">
@@ -804,6 +808,7 @@ function bindGameEvents() {
     if (window.matchMedia("(max-width: 1320px)").matches) state.openChat = !state.openChat;
     state.collapsedChat = !state.collapsedChat;
     if (!state.collapsedChat || state.openChat) state.unreadChat = 0;
+    updateViewportVars();
     renderGame();
     if (state.openChat || !state.collapsedChat) focusChatInput();
   });
@@ -821,6 +826,7 @@ function bindGameEvents() {
     state.openChat = !state.openChat;
     state.collapsedChat = false;
     if (state.openChat) state.unreadChat = 0;
+    updateViewportVars();
     renderGame();
     if (state.openChat) focusChatInput();
   });
@@ -1131,12 +1137,44 @@ async function sendChat(event) {
 
 function focusChatInput() {
   const focus = () => {
+    updateViewportVars();
     const input = document.querySelector("#chat-input");
     if (!input || input.closest(".chat-panel.collapsed")) return;
     input.focus({ preventScroll: true });
+    keepGamePinned();
+    updateViewportVars();
   };
   focus();
   setTimeout(focus, 50);
+  setTimeout(focus, 250);
+}
+
+function initViewportController() {
+  updateViewportVars();
+  window.addEventListener("resize", updateViewportVars);
+  window.addEventListener("orientationchange", () => setTimeout(updateViewportVars, 80));
+  window.visualViewport?.addEventListener("resize", updateViewportVars);
+  window.visualViewport?.addEventListener("scroll", updateViewportVars);
+}
+
+function updateViewportVars() {
+  const root = document.documentElement;
+  const viewport = window.visualViewport;
+  const layoutHeight = window.innerHeight || viewport?.height || 0;
+  const visualHeight = viewport?.height || layoutHeight;
+  const offsetTop = viewport?.offsetTop || 0;
+  const keyboardHeight = Math.max(0, layoutHeight - visualHeight - offsetTop);
+  root.style.setProperty("--game-height", `${layoutHeight}px`);
+  root.style.setProperty("--visual-height", `${visualHeight}px`);
+  root.style.setProperty("--keyboard-height", `${keyboardHeight}px`);
+  root.style.setProperty("--visual-offset-top", `${offsetTop}px`);
+  keepGamePinned();
+}
+
+function keepGamePinned() {
+  if (state.view !== "game") return;
+  document.scrollingElement?.scrollTo?.(0, 0);
+  window.scrollTo(0, 0);
 }
 
 function renderResults() {

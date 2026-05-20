@@ -45,7 +45,7 @@ body.game-mode {
 }
 
 body.game-mode #app {
-  height: 100dvh;
+  height: var(--game-height, 100dvh);
   overflow: hidden;
 }
 
@@ -69,8 +69,8 @@ button {
 .game-screen {
   --chat-width: 300px;
   position: relative;
-  height: 100dvh;
-  min-height: 100dvh;
+  height: var(--game-height, 100dvh);
+  min-height: var(--game-height, 100dvh);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
@@ -1284,10 +1284,14 @@ input:focus {
 
   .chat-panel {
     position: fixed;
-    inset: auto 16px max(16px, env(safe-area-inset-bottom)) 16px;
+    left: 14px;
+    right: 14px;
+    top: calc(70px + var(--visual-offset-top, 0px) + 8px);
+    bottom: calc(var(--keyboard-height, 0px) + max(10px, env(safe-area-inset-bottom)));
     z-index: 34;
     width: auto;
-    height: min(360px, 46dvh);
+    height: auto;
+    max-height: calc(var(--visual-height, 100dvh) - 92px - var(--keyboard-height, 0px));
     min-height: 0;
     transform: translateY(14px) scale(.98);
     opacity: 0;
@@ -1299,7 +1303,7 @@ input:focus {
     transform: translateY(0) scale(1);
     opacity: 1;
     pointer-events: auto;
-    bottom: max(16px, env(safe-area-inset-bottom));
+    bottom: calc(var(--keyboard-height, 0px) + max(10px, env(safe-area-inset-bottom)));
   }
 
   .chat-panel.collapsed {
@@ -1313,7 +1317,9 @@ input:focus {
   }
 
   .game-screen.chat-open .mobile-keyboard {
-    display: none;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
   }
 
   .clues-panel.open {
