@@ -402,6 +402,8 @@ function icon(name) {
     grid: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h6v6h-6z"/></svg>',
     users: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     chat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
+    chevronLeft: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg>',
+    chevronRight: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg>',
     chevronUp: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>',
     chevronDown: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
     send: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>',
@@ -519,6 +521,7 @@ function renderGame() {
         <div class="toolbar">
           <div class="mobile-actions">
             <button class="icon-button" id="toggle-sidebar" title="Players" aria-label="Players">${icon("users")}</button>
+            <button class="icon-button ${state.openClueList ? "active-tool" : ""}" id="toggle-clue-list-mobile" title="List" aria-label="List">${icon("grid")}</button>
             <button class="icon-button ${state.unreadChat ? "has-unread" : ""}" id="toggle-chat-mobile" title="Chat" aria-label="Chat">${icon("chat")}${state.unreadChat ? '<span class="unread-dot"></span>' : ""}</button>
           </div>
           <button class="icon-button desktop-tool" type="button" title="Help" aria-label="Help">${icon("help")}</button>
@@ -607,10 +610,12 @@ function renderBoardCells() {
     const singleOwner = splitOwner ? null : (acrossOwner || downOwner);
     const ownedSolved = Boolean(acrossOwner || downOwner);
     const triangleColors = splitOwner ? solvedTriangleColors(cell, acrossClue, acrossOwner, downClue, downOwner) : null;
+    const activeEdgeClasses = activeKeys.has(`${cell.row}:${cell.col}`) ? selectedClueEdgeClasses(cell, activeKeys) : "";
     const classes = [
       "cell",
       edgeClass,
       activeKeys.has(`${cell.row}:${cell.col}`) ? "selected-clue" : "",
+      activeEdgeClasses,
       peerCluePlayer ? "peer-clue" : "",
       state.active.row === cell.row && state.active.col === cell.col ? "active" : "",
       peer ? "peer" : "",
@@ -637,6 +642,16 @@ function renderBoardCells() {
       </button>
     `;
   }).join("");
+}
+
+function selectedClueEdgeClasses(cell, activeKeys) {
+  const has = (row, col) => activeKeys.has(`${row}:${col}`);
+  return [
+    !has(cell.row - 1, cell.col) ? "selected-edge-top" : "",
+    !has(cell.row, cell.col + 1) ? "selected-edge-right" : "",
+    !has(cell.row + 1, cell.col) ? "selected-edge-bottom" : "",
+    !has(cell.row, cell.col - 1) ? "selected-edge-left" : "",
+  ].filter(Boolean).join(" ");
 }
 
 function renderBoardOnly() {
@@ -690,9 +705,8 @@ function renderMobileKeyboard() {
   return `
     <div class="mobile-keyboard" aria-label="Mobile crossword keyboard">
       ${rows.map((row) => `
-        <div class="mobile-keyboard-row ${row === "ASDFGHJKL" ? "with-list" : ""}">
+        <div class="mobile-keyboard-row ${row === "ASDFGHJKL" ? "home-row" : ""}">
           ${row.split("").map((key) => `<button type="button" class="mobile-key" data-key="${key}">${key}</button>`).join("")}
-          ${row === "ASDFGHJKL" ? '<button type="button" class="mobile-key utility-list" data-key="List">List</button>' : ""}
         </div>
       `).join("")}
       <div class="mobile-keyboard-row utility">
@@ -709,12 +723,12 @@ function renderClueCard() {
   const direction = clue.direction[0].toUpperCase() + clue.direction.slice(1);
   return `
     <div class="clue-card panel" id="clue-card">
-      <button class="clue-card-arrow" id="previous-clue" type="button" aria-label="Previous clue">&lt;</button>
+      <button class="clue-card-arrow" id="previous-clue" type="button" aria-label="Previous clue">${icon("chevronLeft")}</button>
       <div class="clue-card-content">
         <strong>${clue.number} ${escapeHtml(direction)}:</strong>
         <span>${escapeHtml(clue.text)}</span>
       </div>
-      <button class="clue-card-arrow" id="next-clue" type="button" aria-label="Next clue">&gt;</button>
+      <button class="clue-card-arrow" id="next-clue" type="button" aria-label="Next clue">${icon("chevronRight")}</button>
     </div>
   `;
 }
@@ -830,6 +844,10 @@ function bindGameEvents() {
     state.openSidebar = !state.openSidebar;
     renderGame();
   });
+  document.querySelector("#toggle-clue-list-mobile")?.addEventListener("click", () => {
+    state.openClueList = !state.openClueList;
+    renderGame();
+  });
   document.querySelector("#toggle-chat-mobile")?.addEventListener("click", () => {
     state.openChat = !state.openChat;
     state.collapsedChat = false;
@@ -892,9 +910,6 @@ function bindMobileKeyboard() {
         }
       } else if (key === "Enter") {
         toggleDirection();
-      } else if (key === "List") {
-        state.openClueList = !state.openClueList;
-        renderGame();
       }
     });
   });
@@ -1215,24 +1230,25 @@ function freezeGameHeight() {
 function renderResults() {
   const room = state.room;
   const ranked = [...room.players].sort((a, b) => b.solvedCount - a.solvedCount);
+  const podiumEntries = [ranked[1], ranked[0], ranked[2]].filter(Boolean);
   const stats = progress(room);
   app.innerHTML = `
-    <main class="app-shell">
+    <main class="app-shell results-shell">
       <section class="results-screen">
         <div class="results-card panel">
-          <div class="brand"><span class="logo-mark"></span> CrossWorld</div>
-          <p class="kicker">Puzzle Complete</p>
+          <p class="kicker results-kicker">Puzzle Complete</p>
           <h1>Great job, team.</h1>
-          <p class="lede">Completed in ${duration(room.startedAt, room.completedAt)} with ${stats.correct}/${stats.total} correct cells.</p>
           <div class="podium">
-            ${ranked.slice(0, 3).map((player, index) => `
-              <div class="podium-card" style="--player-color:${player.color}">
-                ${avatar(player, "large")}
-                <p class="section-label" style="margin:14px 0 4px">Rank ${index + 1}</p>
+            ${podiumEntries.map((player) => {
+              const rank = ranked.findIndex((rankedPlayer) => rankedPlayer.id === player.id) + 1;
+              return `
+              <div class="podium-card rank-${rank}" style="--player-color:${player.color}">
+                <p class="section-label" style="margin:14px 0 4px">Rank ${rank}</p>
                 <h3>${escapeHtml(player.username)}</h3>
                 <div class="score">${player.solvedCount}</div>
               </div>
-            `).join("")}
+            `;
+            }).join("")}
           </div>
           <div class="stat-grid">
             <div class="stat"><span>Total Clues Solved</span><strong>${allClues().filter((clue) => clue.solvedAt).length}</strong></div>
