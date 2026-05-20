@@ -1243,6 +1243,35 @@ input:focus {
     box-shadow: 0 8px 24px rgba(0,0,0,.14);
   }
 
+  .chat-panel {
+    position: fixed;
+    inset: 72px 10px calc(236px + env(safe-area-inset-bottom)) 10px;
+    z-index: 34;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    transform: translateY(14px) scale(.98);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 180ms ease, opacity 180ms ease;
+  }
+
+  .chat-panel.open {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .chat-panel.collapsed {
+    width: auto;
+    padding: 16px;
+  }
+
+  .chat-form input {
+    min-width: 0;
+    min-height: 44px;
+  }
+
   .clues-panel.open {
     display: grid;
   }
@@ -1262,7 +1291,7 @@ input:focus {
   }
 
   .crossword-board {
-    width: min(100%, 680px, calc(100dvh - 372px));
+    width: min(100%, 680px, max(240px, calc(100svh - 390px)));
     min-width: 0;
   }
 

@@ -419,6 +419,14 @@ function cellKey(row, col) {
   return `${row}:${col}`;
 }
 
+function allClues(room) {
+  return [...room.puzzle.cluesAcross, ...room.puzzle.cluesDown];
+}
+
+function clueContainsCell(clue, row, col) {
+  return clue.cells.some((cell) => cell.row === row && cell.col === col);
+}
+
 function clueSolved(room, clue) {
   return clue.cells.every(({ row, col }) => {
     const cell = room.puzzle.cells.find((candidate) => candidate.row === row && candidate.col === col);
@@ -434,7 +442,7 @@ function recalculate(room, finalPlayerId = null) {
 
   for (const player of room.players) player.solvedCount = 0;
 
-  for (const clue of [...room.puzzle.cluesAcross, ...room.puzzle.cluesDown]) {
+  for (const clue of allClues(room)) {
     if (clueSolved(room, clue)) {
       if (!clue.solvedAt) {
         clue.solvedAt = new Date().toISOString();
@@ -480,7 +488,7 @@ function recalculate(room, finalPlayerId = null) {
 
   return {
     percent: Math.round((correctCells / allFillable.length) * 100),
-    newlySolved: [...room.puzzle.cluesAcross, ...room.puzzle.cluesDown]
+    newlySolved: allClues(room)
       .filter((clue) => clue.solvedAt && !solvedBefore.has(clue.id))
       .map((clue) => clue.id),
   };
@@ -596,6 +604,10 @@ async function handleApi(req, res, pathname) {
       const cell = room.puzzle.cells.find((candidate) => candidate.row === body.row && candidate.col === body.col);
       if (!cell || cell.isBlack) throw new Error("Cell not playable");
       const nextValue = String(body.value || "").slice(0, 1).toUpperCase().replace(/[^A-Z]/g, "");
+      const activeClue = allClues(room).find((clue) => clue.id === body.clueId);
+      if (activeClue?.solvedAt) throw new Error("That clue is already solved");
+      const solvedCellClues = allClues(room).filter((clue) => clue.solvedAt && clueContainsCell(clue, cell.row, cell.col));
+      if (solvedCellClues.length && nextValue !== cell.value) throw new Error("Solved letters are locked");
       cell.value = nextValue;
       cell.updatedBy = player.id;
       cell.updatedAt = new Date().toISOString();

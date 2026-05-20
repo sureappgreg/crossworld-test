@@ -108,6 +108,14 @@ function clueById(id) {
   return allClues().find((clue) => clue.id === id);
 }
 
+function cluesForCell(row, col) {
+  return allClues().filter((clue) => clue.cells.some((cell) => cell.row === row && cell.col === col));
+}
+
+function solvedCluesForCell(row, col) {
+  return cluesForCell(row, col).filter((clue) => clue.solvedAt);
+}
+
 function playerById(id) {
   return state.room?.players.find((player) => player.id === id);
 }
@@ -797,6 +805,7 @@ function bindGameEvents() {
     state.collapsedChat = !state.collapsedChat;
     if (!state.collapsedChat || state.openChat) state.unreadChat = 0;
     renderGame();
+    if (state.openChat || !state.collapsedChat) focusChatInput();
   });
   document.querySelector("#chat-form").addEventListener("submit", sendChat);
   const puzzleInput = document.querySelector("#puzzle-keyboard");
@@ -813,6 +822,7 @@ function bindGameEvents() {
     state.collapsedChat = false;
     if (state.openChat) state.unreadChat = 0;
     renderGame();
+    if (state.openChat) focusChatInput();
   });
 }
 
@@ -1063,6 +1073,16 @@ function moveBy(offset) {
 async function updateCell(value) {
   const cell = cellAt(state.active.row, state.active.col);
   if (!cell || cell.isBlack) return;
+  const activeClue = clueById(state.active.clueId);
+  if (activeClue?.solvedAt) {
+    setToast("That clue is already solved.");
+    return;
+  }
+  const solvedCellClues = solvedCluesForCell(cell.row, cell.col);
+  if (solvedCellClues.length && value !== cell.value) {
+    setToast("Solved letters are locked.");
+    return;
+  }
   cell.value = value;
   renderBoardOnly();
   if (value) moveBy(1);
@@ -1072,6 +1092,7 @@ async function updateCell(value) {
       playerId: state.playerId,
       row: cell.row,
       col: cell.col,
+      clueId: state.active.clueId,
       value,
     });
   } catch (error) {
@@ -1102,9 +1123,18 @@ async function sendChat(event) {
   input.value = "";
   try {
     await api("/api/chat", { code: state.room.code, playerId: state.playerId, text });
+    focusChatInput();
   } catch (error) {
     setToast(error.message);
   }
+}
+
+function focusChatInput() {
+  setTimeout(() => {
+    const input = document.querySelector("#chat-input");
+    if (!input || input.closest(".chat-panel.collapsed")) return;
+    input.focus({ preventScroll: true });
+  }, 0);
 }
 
 function renderResults() {
