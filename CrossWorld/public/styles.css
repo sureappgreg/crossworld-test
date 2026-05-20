@@ -25,6 +25,7 @@
 html,
 body,
 #app {
+  height: 100%;
   min-height: 100%;
   margin: 0;
 }
@@ -34,6 +35,15 @@ body {
   color: var(--text);
   font-family: var(--app-font);
   overflow-x: hidden;
+}
+
+body.game-mode {
+  overflow: hidden;
+}
+
+body.game-mode #app {
+  height: 100dvh;
+  overflow: hidden;
 }
 
 button,
@@ -49,6 +59,15 @@ button {
 .app-shell {
   min-height: 100vh;
   padding: 0 16px 18px;
+}
+
+.game-screen {
+  height: 100dvh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  padding-bottom: 14px;
 }
 
 .brand {
@@ -479,9 +498,15 @@ input:focus {
 
 .game-grid {
   display: grid;
-  grid-template-columns: 220px minmax(440px, 1fr) 300px minmax(260px, 300px);
+  grid-template-columns: 220px minmax(440px, 1fr) minmax(260px, 300px);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.game-grid.clue-list-open {
+  grid-template-columns: 220px minmax(440px, 1fr) 300px minmax(260px, 300px);
 }
 
 .sidebar,
@@ -493,9 +518,9 @@ input:focus {
 }
 
 .sidebar {
-  min-height: calc(100vh - 102px);
-  position: sticky;
-  top: 20px;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
 }
 
 .section-label {
@@ -595,7 +620,10 @@ input:focus {
 
 .board-zone {
   display: grid;
-  gap: 14px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .board-shell {
@@ -603,7 +631,10 @@ input:focus {
   background: #ffffff;
   border-radius: 8px;
   box-shadow: none;
-  overflow: auto;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  min-height: 0;
 }
 
 .crossword-board {
@@ -751,10 +782,15 @@ input:focus {
 }
 
 .clues-panel {
-  display: grid;
+  display: none;
   gap: 14px;
-  max-height: calc(100vh - 102px);
+  height: 100%;
+  max-height: none;
   overflow: hidden;
+}
+
+.clues-panel.open {
+  display: grid;
 }
 
 .tabs {
@@ -825,6 +861,7 @@ input:focus {
   align-items: center;
   min-height: 86px;
   border-color: #c8c8c8;
+  overflow: hidden;
 }
 
 .clue-card-arrow {
@@ -847,28 +884,37 @@ input:focus {
 
 .clue-card-content {
   min-width: 0;
-  display: flex;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: baseline;
-  justify-content: center;
   gap: 8px;
   color: var(--text);
-  text-align: center;
-  line-height: 1.35;
+  overflow: hidden;
+  text-align: left;
+  line-height: 1.25;
 }
 
 .clue-card-content strong {
-  flex: 0 0 auto;
+  min-width: 0;
   font-family: var(--app-font);
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
   text-transform: capitalize;
+  white-space: nowrap;
 }
 
 .clue-card-content span {
   min-width: 0;
+  max-width: 100%;
   color: #1f1f1f;
-  font-size: 22px;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  font-size: 20px;
   font-weight: 400;
+  overflow-wrap: anywhere;
 }
 
 .mobile-keyboard {
@@ -876,7 +922,8 @@ input:focus {
 }
 
 .chat-panel {
-  height: calc(100vh - 102px);
+  height: 100%;
+  min-height: 0;
   display: grid;
   grid-template-rows: auto 1fr auto;
 }
@@ -1045,6 +1092,10 @@ input:focus {
     grid-template-columns: 220px minmax(440px, 1fr) 310px;
   }
 
+  .game-grid.clue-list-open {
+    grid-template-columns: 220px minmax(440px, 1fr) minmax(280px, 310px);
+  }
+
   .chat-panel {
     position: fixed;
     inset: 88px 18px 18px auto;
@@ -1069,10 +1120,21 @@ input:focus {
     padding: 0 10px 10px;
   }
 
+  .game-screen {
+    padding-bottom: 0;
+  }
+
   .login-card,
   .lobby-wrap,
   .game-grid {
     grid-template-columns: 1fr;
+  }
+
+  .game-grid,
+  .game-grid.clue-list-open {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
   }
 
   .login-form {
@@ -1155,7 +1217,6 @@ input:focus {
 
   .sidebar,
   .clues-panel {
-    position: static;
     min-height: auto;
     max-height: none;
   }
@@ -1166,6 +1227,34 @@ input:focus {
 
   .sidebar.open {
     display: block;
+    position: fixed;
+    inset: 72px 10px 10px;
+    z-index: 30;
+    height: auto;
+    overflow: hidden;
+  }
+
+  .clues-panel {
+    position: fixed;
+    inset: 72px 10px calc(222px + env(safe-area-inset-bottom)) 10px;
+    z-index: 28;
+    height: auto;
+    min-height: 0;
+    box-shadow: 0 8px 24px rgba(0,0,0,.14);
+  }
+
+  .clues-panel.open {
+    display: grid;
+  }
+
+  .clue-list {
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .board-zone {
+    grid-template-rows: minmax(0, 1fr) 72px auto;
+    gap: 7px;
   }
 
   .board-shell {
@@ -1173,96 +1262,112 @@ input:focus {
   }
 
   .crossword-board {
-    min-width: min(680px, 92vw);
+    width: min(100%, 680px, calc(100dvh - 372px));
+    min-width: 0;
   }
 
   .clue-card {
-    grid-template-columns: 46px minmax(0, 1fr) 46px;
-    gap: 10px;
-    min-height: 104px;
-    padding: 12px 8px;
+    grid-template-columns: 40px minmax(0, 1fr) 40px;
+    gap: 7px;
+    min-height: 0;
+    height: 72px;
+    padding: 8px 7px;
   }
 
   .clue-card-arrow {
-    width: 46px;
-    min-height: 64px;
-    font-size: 34px;
+    width: 40px;
+    min-height: 50px;
+    font-size: 30px;
   }
 
   .clue-card-content {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: baseline;
-    justify-content: flex-start;
-    gap: 4px 7px;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 4px 6px;
     text-align: left;
+    line-height: 1.18;
   }
 
   .clue-card-content span {
-    display: -webkit-box;
-    overflow: hidden;
     -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    font-size: 21px;
-    overflow-wrap: anywhere;
+    font-size: 16px;
+  }
+
+  .clue-card-content strong {
+    font-size: 16px;
   }
 
   .mobile-keyboard {
-    position: sticky;
-    bottom: 0;
+    position: relative;
     z-index: 12;
     display: grid;
-    gap: 5px;
-    padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+    gap: 4px;
+    padding: 4px 0 calc(6px + env(safe-area-inset-bottom));
     margin: 0;
     border-top: 0;
     background: #f4f4f4;
+    overflow: hidden;
   }
 
   .mobile-keyboard-row {
-    display: flex;
-    justify-content: center;
+    display: grid;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
     gap: 4px;
+  }
+
+  .mobile-keyboard-row.with-list {
+    grid-template-columns: repeat(9, minmax(0, 1fr)) 1.35fr;
+  }
+
+  .mobile-keyboard-row.utility {
+    grid-template-columns: 1.22fr repeat(7, minmax(0, 1fr)) 1.22fr;
   }
 
   .mobile-key {
     min-width: 0;
-    flex: 1;
-    max-width: 60px;
-    min-height: 88px;
+    width: 100%;
+    max-width: none;
+    min-height: 70px;
+    padding: 0;
     border-radius: 8px;
     color: #111111;
     background: #f7f7f7;
     border: 1px solid #c8c8c8;
+    display: grid;
+    place-items: center;
     font-size: 23px;
     font-weight: 700;
+    line-height: 1;
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
     box-shadow: 0 2px 0 rgba(0,0,0,.22);
   }
 
   .mobile-key.utility-list {
-    max-width: 60px;
+    max-width: none;
     color: #ffffff;
     background: #1769b7;
     border-color: #155ca0;
-    font-size: 20px;
-    font-weight: 400;
+    font-size: 14px;
+    font-weight: 500;
   }
 
   .mobile-key.utility-number {
-    max-width: 90px;
+    max-width: none;
     color: #ffffff;
     background: #252525;
     border-color: #1c1c1c;
-    font-size: 22px;
-    font-weight: 400;
+    font-size: 19px;
+    font-weight: 500;
   }
 
   .mobile-key.utility-delete {
-    max-width: 90px;
+    max-width: none;
     color: #ffffff;
     background: #cc2b25;
     border-color: #b92520;
-    font-size: 32px;
+    font-size: 30px;
     font-weight: 400;
   }
 }

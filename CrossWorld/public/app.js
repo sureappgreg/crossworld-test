@@ -14,6 +14,7 @@ const state = {
   collapsedChat: false,
   openChat: false,
   openSidebar: false,
+  openClueList: false,
   toast: "",
   solvedSeen: new Set(),
   solvedFlash: new Set(),
@@ -92,7 +93,11 @@ function allClues(room = state.room) {
 }
 
 function activeClues() {
-  return allClues();
+  return allClues().sort((a, b) => {
+    if (a.number !== b.number) return a.number - b.number;
+    if (a.direction === b.direction) return 0;
+    return a.direction === "across" ? -1 : 1;
+  });
 }
 
 function cellAt(row, col) {
@@ -226,6 +231,7 @@ async function joinExistingSession(code, playerId) {
 }
 
 function render() {
+  document.body.classList.toggle("game-mode", state.view === "game");
   if (!state.user || state.view === "login") return renderLogin();
   if (state.view === "home") return renderHome();
   if (state.view === "lobby") return renderLobby();
@@ -504,12 +510,11 @@ function renderGame() {
   const room = state.room;
   const stats = progress(room);
   app.innerHTML = `
-    <main class="app-shell">
+    <main class="app-shell game-screen">
       <header class="topbar">
         <button class="back-button" id="back-button" type="button" aria-label="Back">${icon("back")}<span>Back</span></button>
         <div class="game-title">
           <div id="timer" class="timer">${duration(room.startedAt, room.completedAt)}</div>
-          <button class="pause-button" type="button" aria-label="Pause">${icon("pause")}</button>
         </div>
         <div class="toolbar">
           <div class="mobile-actions">
@@ -519,15 +524,14 @@ function renderGame() {
           <button class="icon-button desktop-tool" type="button" title="Help" aria-label="Help">${icon("help")}</button>
           <button class="icon-button desktop-tool" type="button" title="Print" aria-label="Print">${icon("print")}</button>
           <button class="icon-button desktop-tool" type="button" title="Settings" aria-label="Settings">${icon("settings")}</button>
-          <button class="more-button" type="button">More ${icon("grid")}</button>
         </div>
       </header>
-      <section class="game-grid">
+      <section class="game-grid ${state.openClueList ? "clue-list-open" : ""}">
         ${renderSidebar(stats)}
         <section class="board-zone">
           <div class="board-shell"><div id="board" class="crossword-board" style="--grid-width:${room.puzzle.width || room.puzzle.size};--grid-height:${room.puzzle.height || room.puzzle.size}">${renderBoardCells()}</div></div>
           ${renderClueCard()}
-          <input id="puzzle-keyboard" class="puzzle-keyboard" inputmode="text" autocomplete="off" autocapitalize="characters" aria-label="Puzzle keyboard input" />
+          <input id="puzzle-keyboard" class="puzzle-keyboard" inputmode="none" autocomplete="off" autocapitalize="characters" readonly aria-label="Puzzle keyboard input" />
           ${renderMobileKeyboard()}
         </section>
         ${renderClues()}
@@ -580,7 +584,7 @@ function renderBoardCells() {
     const peerCluePlayers = state.room.players.filter((player) => {
       if (player.id === state.playerId || !player.online || !player.cursor?.clueId) return false;
       const clue = clueById(player.cursor.clueId);
-      return clue?.cells.some((pos) => pos.row === cell.row && pos.col === cell.col);
+      return clue?.solvedAt && clue.cells.some((pos) => pos.row === cell.row && pos.col === cell.col);
     });
     const peerCluePlayer = peerCluePlayers[0];
     const solvedClues = allClues().filter((clue) =>
@@ -679,7 +683,7 @@ function renderMobileKeyboard() {
   return `
     <div class="mobile-keyboard" aria-label="Mobile crossword keyboard">
       ${rows.map((row) => `
-        <div class="mobile-keyboard-row">
+        <div class="mobile-keyboard-row ${row === "ASDFGHJKL" ? "with-list" : ""}">
           ${row.split("").map((key) => `<button type="button" class="mobile-key" data-key="${key}">${key}</button>`).join("")}
           ${row === "ASDFGHJKL" ? '<button type="button" class="mobile-key utility-list" data-key="List">List</button>' : ""}
         </div>
@@ -711,7 +715,7 @@ function renderClueCard() {
 function renderClues() {
   const clues = state.clueTab === "across" ? state.room.puzzle.cluesAcross : state.room.puzzle.cluesDown;
   return `
-    <aside class="clues-panel panel">
+    <aside class="clues-panel panel ${state.openClueList ? "open" : ""}">
       <div class="tabs">
         <button class="tab ${state.clueTab === "across" ? "active" : ""}" data-tab="across">Across</button>
         <button class="tab ${state.clueTab === "down" ? "active" : ""}" data-tab="down">Down</button>
@@ -865,7 +869,7 @@ function bindMobileKeyboard() {
       } else if (key === "Enter") {
         toggleDirection();
       } else if (key === "List") {
-        state.openSidebar = !state.openSidebar;
+        state.openClueList = !state.openClueList;
         renderGame();
       }
     });
@@ -937,7 +941,9 @@ function selectCell(row, col, direction = state.active.direction) {
 function selectClue(clueId) {
   const clue = clueById(clueId);
   if (!clue) return;
+  state.openClueList = false;
   activateClue(clue);
+  renderGame();
 }
 
 function activateClue(clue) {
@@ -969,7 +975,7 @@ function focusPuzzleKeyboard() {
   const input = document.querySelector("#puzzle-keyboard");
   if (!input) return;
   input.value = "";
-  input.focus();
+  input.blur();
 }
 
 function handlePuzzleInput(event) {
