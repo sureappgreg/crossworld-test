@@ -2,11 +2,11 @@ TITLE: Forest Mini
 AUTHOR: CrossWorld
 
 GRID:
-MOSSY#T
-OAKEN#R
-TRAIL#E
-HERON#E
-STARS#S
+MOSSY
+OAKEN
+TRAIL
+HERON
+STARS
 
 ACROSS:
 1. Covered in soft green growth
@@ -21,4 +21,3 @@ DOWN:
 3. Third column answer
 4. Fourth column answer
 5. Fifth column answer
-6. The answer is Trees. Seriously.
