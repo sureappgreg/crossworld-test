@@ -353,13 +353,12 @@ function renderHome() {
       <section class="lobby-wrap home-lobby">
         <div class="lobby-hero panel">
           <div class="lobby-title">
-            <p class="kicker">Private multiplayer crossword</p>
-            <h1>Start a room, solve together.</h1>
-            <p class="lede">Playable imported puzzles with live typing, active-clue presence, clue ownership, chat, and results.</p>
+            <p class="kicker">Create lobby</p>
+            <h2>Start a lobby and invite your friends</h2>
           </div>
           <form id="create-form" class="create-team-form">
             ${renderPuzzlePicker()}
-            <label class="field">Team Name<input id="team-name" required maxlength="40" autocomplete="organization" placeholder="Sunday Solvers" /></label>
+            <label class="field">Team Name <small>(required)</small><input id="team-name" required maxlength="40" autocomplete="organization" placeholder="Sunday Solvers" /></label>
             <div class="lobby-actions">
               <button class="primary" type="submit">Create Lobby</button>
               <button class="secondary" id="logout" type="button">Switch Profile</button>
@@ -369,7 +368,7 @@ function renderHome() {
         <aside class="lobby-card panel">
           <p class="section-label">Join Lobby</p>
           <h2>Enter invite code</h2>
-          <p class="lede">Private rooms support 2-4 players, but you can start alone for local testing.</p>
+          <p class="lede join-lede">Enter invite code to join a friend's lobby</p>
           <form id="join-form" class="input-stack">
             <label class="field">Invite Code<input id="join-code" required maxlength="6" autocomplete="off" placeholder="7X9K2A" /></label>
             <button class="primary" type="submit">Join Lobby</button>
