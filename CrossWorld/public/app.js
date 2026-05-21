@@ -549,7 +549,7 @@ function renderLobby() {
   const room = state.room;
   const me = playerById(state.playerId);
   const isHost = room.hostId === state.playerId;
-  const canStart = isHost && room.players.every((player) => player.id === room.hostId || player.ready);
+  const canStart = isHost;
   const puzzleSize = `${room.puzzle.width || room.puzzle.size}x${room.puzzle.height || room.puzzle.size}`;
   app.innerHTML = `
     <main class="app-shell ready-shell">

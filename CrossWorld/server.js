@@ -633,9 +633,6 @@ async function handleApi(req, res, pathname) {
       const body = await readJson(req);
       const room = findRoomOrThrow(body.code);
       if (room.hostId !== body.playerId) throw new Error("Only the host can start");
-      if (!room.players.every((player) => player.ready || player.id === room.hostId)) {
-        throw new Error("Every guest must be ready");
-      }
       room.status = "playing";
       room.startedAt = new Date().toISOString();
       room.activity.unshift({
