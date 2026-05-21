@@ -15,12 +15,20 @@ const state = {
   openChat: false,
   openSidebar: false,
   openClueList: false,
+  openLeaderboard: false,
+  leaderboardEntries: [],
+  leaderboardLoading: false,
+  puzzleOptions: [],
+  puzzleOptionsLoaded: false,
+  selectedPuzzleId: "",
   toast: "",
   solvedSeen: new Set(),
   solvedFlash: new Set(),
   unreadChat: 0,
   lastMessageCount: 0,
   preserveChatFocus: false,
+  chatDraft: "",
+  keyboardMode: "letters",
   elapsedNow: Date.now(),
 };
 
@@ -70,6 +78,16 @@ function duration(startIso, endIso) {
   if (!startIso) return "00:00";
   const end = endIso ? new Date(endIso).getTime() : state.elapsedNow;
   const total = Math.max(0, Math.floor((end - new Date(startIso).getTime()) / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return hours > 0
+    ? `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
+    : `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function durationFromMs(elapsedMs) {
+  const total = Math.max(0, Math.floor(Number(elapsedMs || 0) / 1000));
   const hours = Math.floor(total / 3600);
   const minutes = Math.floor((total % 3600) / 60);
   const seconds = total % 60;
@@ -139,6 +157,13 @@ async function api(path, body) {
   return payload;
 }
 
+async function getJson(path) {
+  const response = await fetch(path, { headers: { accept: "application/json" } });
+  const payload = await response.json();
+  if (!response.ok || payload.error) throw new Error(payload.error || "Request failed");
+  return payload;
+}
+
 function setToast(text) {
   state.toast = text;
   renderToast();
@@ -155,7 +180,14 @@ function compactLayout() {
 }
 
 function applyRoom(room, eventType = "STATE") {
-  if (chatIsVisible() && document.activeElement?.id === "chat-input") {
+  const chatFocused = chatIsVisible() && document.activeElement?.id === "chat-input";
+  const patchGameplayOnly = chatFocused &&
+    ["CELL_UPDATED", "CURSOR_MOVED", "CLUE_SOLVED"].includes(eventType) &&
+    state.view === "game" &&
+    state.room?.status === "playing" &&
+    room.status === "playing";
+  if (chatFocused) {
+    state.chatDraft = document.activeElement.value;
     state.preserveChatFocus = true;
   }
   const previousMessageCount = state.room?.messages.length ?? state.lastMessageCount;
@@ -193,6 +225,11 @@ function applyRoom(room, eventType = "STATE") {
   if (chatMessageOnly && chatIsVisible()) {
     renderChatMessagesOnly();
     scrollChatToLatest();
+    return;
+  }
+  if (patchGameplayOnly) {
+    renderBoardOnly();
+    renderGameChromeOnly();
     return;
   }
   render();
@@ -320,10 +357,14 @@ function renderHome() {
             <h1>Start a room, solve together.</h1>
             <p class="lede">Playable imported puzzles with live typing, active-clue presence, clue ownership, chat, and results.</p>
           </div>
-          <div class="lobby-actions">
-            <button class="primary" id="create-room">Create Lobby</button>
-            <button class="secondary" id="logout">Switch Profile</button>
-          </div>
+          <form id="create-form" class="create-team-form">
+            ${renderPuzzlePicker()}
+            <label class="field">Team Name<input id="team-name" required maxlength="40" autocomplete="organization" placeholder="Sunday Solvers" /></label>
+            <div class="lobby-actions">
+              <button class="primary" type="submit">Create Lobby</button>
+              <button class="secondary" id="logout" type="button">Switch Profile</button>
+            </div>
+          </form>
         </div>
         <aside class="lobby-card panel">
           <p class="section-label">Join Lobby</p>
@@ -338,7 +379,13 @@ function renderHome() {
       <div id="toast-root"></div>
     </main>
   `;
-  document.querySelector("#create-room").addEventListener("click", createLobby);
+  ensurePuzzleOptions();
+  bindPuzzlePicker();
+  document.querySelector("#create-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const teamName = document.querySelector("#team-name").value.trim();
+    createLobby(teamName);
+  });
   document.querySelector("#logout").addEventListener("click", () => {
     localStorage.removeItem(STORAGE_USER);
     localStorage.removeItem(STORAGE_SESSION);
@@ -355,12 +402,85 @@ function renderHome() {
   renderToast();
 }
 
-async function createLobby() {
+function renderPuzzlePicker() {
+  const puzzles = state.puzzleOptions.slice(0, 3);
+  if (!puzzles.length) {
+    return `
+      <div class="puzzle-picker">
+        <p class="section-label" style="margin:0">Choose Puzzle</p>
+        <div class="puzzle-card-row">
+          ${[0, 1, 2].map((index) => `
+            <div class="puzzle-card placeholder">
+              <span>Puzzle ${index + 1}</span>
+              ${miniPuzzleGrid(index)}
+            </div>
+          `).join("")}
+        </div>
+      </div>
+    `;
+  }
+  if (!state.selectedPuzzleId || !puzzles.some((puzzle) => puzzle.id === state.selectedPuzzleId)) {
+    state.selectedPuzzleId = puzzles[0].id;
+  }
+  return `
+    <div class="puzzle-picker">
+      <p class="section-label" style="margin:0">Choose Puzzle</p>
+      <div class="puzzle-card-row">
+        ${puzzles.map((puzzle, index) => `
+          <button class="puzzle-card ${state.selectedPuzzleId === puzzle.id ? "selected" : ""}" type="button" data-puzzle-id="${escapeHtml(puzzle.id)}" aria-pressed="${state.selectedPuzzleId === puzzle.id}">
+            <span>${escapeHtml(puzzle.title)}</span>
+            ${miniPuzzleGrid(index)}
+          </button>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function miniPuzzleGrid(seed = 0) {
+  const patterns = [
+    [0, 4, 6, 18, 20, 24],
+    [2, 8, 10, 14, 16, 22],
+    [1, 5, 12, 19, 23],
+  ];
+  const blackSquares = new Set(patterns[seed % patterns.length]);
+  return `
+    <div class="mini-puzzle-grid" aria-hidden="true">
+      ${Array.from({ length: 25 }, (_, index) => `<i class="${blackSquares.has(index) ? "black" : ""}"></i>`).join("")}
+    </div>
+  `;
+}
+
+function bindPuzzlePicker() {
+  document.querySelectorAll("[data-puzzle-id]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.selectedPuzzleId = button.dataset.puzzleId;
+      renderHome();
+    });
+  });
+}
+
+async function ensurePuzzleOptions() {
+  if (state.puzzleOptionsLoaded) return;
+  state.puzzleOptionsLoaded = true;
+  try {
+    const payload = await getJson("/api/puzzles");
+    state.puzzleOptions = (payload.puzzles || []).slice(0, 3);
+    if (!state.selectedPuzzleId && state.puzzleOptions[0]) state.selectedPuzzleId = state.puzzleOptions[0].id;
+    if (state.view === "home") renderHome();
+  } catch (error) {
+    setToast(error.message);
+  }
+}
+
+async function createLobby(teamName) {
   try {
     const payload = await api("/api/lobby/create", {
       playerId: state.user.id,
       username: state.user.username,
       email: state.user.email,
+      teamName,
+      puzzleId: state.selectedPuzzleId,
     });
     state.playerId = payload.playerId;
     saveJson(STORAGE_SESSION, { code: payload.room.code, playerId: payload.playerId });
@@ -400,6 +520,7 @@ function icon(name) {
     print: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9V4h10v5"/><path d="M7 17H5a3 3 0 0 1-3-3v-2a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v2a3 3 0 0 1-3 3h-2"/><path d="M7 14h10v6H7z"/></svg>',
     settings: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.2a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.2a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8 1.6 1.6 0 0 0 1.5 1h.2a2 2 0 1 1 0 4h-.2a1.6 1.6 0 0 0-1.4 1Z"/></svg>',
     grid: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4z"/><path d="M14 4h6v6h-6z"/><path d="M4 14h6v6H4z"/><path d="M14 14h6v6h-6z"/></svg>',
+    trophy: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 21h8"/><path d="M12 17v4"/><path d="M7 4h10v4a5 5 0 0 1-10 0Z"/><path d="M17 5h3v2a4 4 0 0 1-4 4"/><path d="M7 5H4v2a4 4 0 0 0 4 4"/></svg>',
     users: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     chat: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
     chevronLeft: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7"/></svg>',
@@ -437,7 +558,7 @@ function renderLobby() {
           <div class="lobby-title">
             <p class="kicker">Lobby</p>
             <h1>${escapeHtml(room.puzzle.title)}</h1>
-            <p class="lede">${escapeHtml(room.puzzle.subtitle)} - ${puzzleSize} - Private room - ${room.players.length}/${room.maxPlayers} players</p>
+            <p class="lede">${escapeHtml(room.teamName || "Team")} - ${escapeHtml(room.puzzle.subtitle)} - ${puzzleSize} - Private room - ${room.players.length}/${room.maxPlayers} players</p>
             <div class="room-code">
               <div>
                 <p class="section-label" style="margin:0 0 6px">Invite Code</p>
@@ -522,8 +643,10 @@ function renderGame() {
           <div class="mobile-actions">
             <button class="icon-button" id="toggle-sidebar" title="Players" aria-label="Players">${icon("users")}</button>
             <button class="icon-button ${state.openClueList ? "active-tool" : ""}" id="toggle-clue-list-mobile" title="List" aria-label="List">${icon("grid")}</button>
+            <button class="icon-button ${state.openLeaderboard ? "active-tool" : ""}" id="toggle-leaderboard" title="Leaderboard" aria-label="Leaderboard">${icon("trophy")}</button>
             <button class="icon-button ${state.unreadChat ? "has-unread" : ""}" id="toggle-chat-mobile" title="Chat" aria-label="Chat">${icon("chat")}${state.unreadChat ? '<span class="unread-dot"></span>' : ""}</button>
           </div>
+          <button class="icon-button desktop-tool ${state.openLeaderboard ? "active-tool" : ""}" id="toggle-leaderboard-desktop" type="button" title="Leaderboard" aria-label="Leaderboard">${icon("trophy")}</button>
           <button class="icon-button desktop-tool" type="button" title="Help" aria-label="Help">${icon("help")}</button>
           <button class="icon-button desktop-tool" type="button" title="Print" aria-label="Print">${icon("print")}</button>
           <button class="icon-button desktop-tool" type="button" title="Settings" aria-label="Settings">${icon("settings")}</button>
@@ -539,6 +662,7 @@ function renderGame() {
         </section>
         ${renderClues()}
         ${renderChat()}
+        ${renderLeaderboard()}
       </section>
       <div id="toast-root"></div>
     </main>
@@ -701,6 +825,19 @@ function colorMix(color, amount) {
 }
 
 function renderMobileKeyboard() {
+  if (state.keyboardMode === "numbers") {
+    return `
+      <div class="mobile-keyboard number-keyboard" aria-label="Mobile number keyboard">
+        <div class="mobile-keyboard-row">
+          ${"1234567890".split("").map((key) => `<button type="button" class="mobile-key" data-key="${key}">${key}</button>`).join("")}
+        </div>
+        <div class="mobile-keyboard-row number-wide-row">
+          <button type="button" class="mobile-key utility-number" data-key="Letters">ABC</button>
+          <button type="button" class="mobile-key utility-delete" data-key="Backspace">←</button>
+        </div>
+      </div>
+    `;
+  }
   const rows = ["QWERTYUIOP", "ASDFGHJKL"];
   return `
     <div class="mobile-keyboard" aria-label="Mobile crossword keyboard">
@@ -773,7 +910,7 @@ function renderChat() {
       </div>
       <div class="chat-body">${renderChatMessages()}</div>
       <form class="chat-form" id="chat-form">
-        <input id="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" inputmode="text" />
+        <input id="chat-input" placeholder="Type a message..." maxlength="500" autocomplete="off" inputmode="text" value="${escapeHtml(state.chatDraft)}" />
         <button class="primary" type="submit" aria-label="Send">${icon("send")}</button>
       </form>
     </aside>
@@ -798,6 +935,31 @@ function renderChatMessages() {
 function renderChatMessagesOnly() {
   const body = document.querySelector(".chat-body");
   if (body && state.room) body.innerHTML = renderChatMessages();
+}
+
+function renderLeaderboard() {
+  const cls = ["leaderboard-panel", "panel", state.openLeaderboard ? "open" : ""].join(" ");
+  const rows = state.leaderboardEntries.map((entry, index) => `
+    <div class="leaderboard-row">
+      <strong>${index + 1}</strong>
+      <span>${escapeHtml(entry.teamName)}</span>
+      <em>${durationFromMs(entry.elapsedMs)}</em>
+    </div>
+  `).join("");
+  return `
+    <aside class="${cls}" id="leaderboard">
+      <div class="leaderboard-head">
+        <div>
+          <p class="section-label" style="margin:0 0 4px">Leaderboard</p>
+          <h3>${escapeHtml(state.room.puzzle.title)}</h3>
+        </div>
+        <button class="icon-button" id="close-leaderboard" type="button" aria-label="Close leaderboard">${icon("chevronUp")}</button>
+      </div>
+      <div class="leaderboard-list">
+        ${state.leaderboardLoading ? `<p class="lede">Loading times...</p>` : rows || `<p class="lede">No completed teams yet.</p>`}
+      </div>
+    </aside>
+  `;
 }
 
 function bindGameEvents() {
@@ -830,6 +992,9 @@ function bindGameEvents() {
   });
   const chatForm = document.querySelector("#chat-form");
   chatForm.addEventListener("submit", sendChat);
+  document.querySelector("#chat-input")?.addEventListener("input", (event) => {
+    state.chatDraft = event.target.value;
+  });
   document.querySelector("#chat-form button")?.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     state.preserveChatFocus = true;
@@ -848,6 +1013,12 @@ function bindGameEvents() {
     state.openClueList = !state.openClueList;
     renderGame();
   });
+  document.querySelector("#toggle-leaderboard")?.addEventListener("click", toggleLeaderboard);
+  document.querySelector("#toggle-leaderboard-desktop")?.addEventListener("click", toggleLeaderboard);
+  document.querySelector("#close-leaderboard")?.addEventListener("click", () => {
+    state.openLeaderboard = false;
+    renderGame();
+  });
   document.querySelector("#toggle-chat-mobile")?.addEventListener("click", () => {
     state.openChat = !state.openChat;
     state.collapsedChat = false;
@@ -861,6 +1032,27 @@ function bindGameEvents() {
 function bindClueControls() {
   bindClueCardControls();
   bindClueListControls();
+}
+
+async function toggleLeaderboard() {
+  state.openLeaderboard = !state.openLeaderboard;
+  if (!state.openLeaderboard) {
+    renderGame();
+    return;
+  }
+  state.leaderboardLoading = true;
+  renderGame();
+  try {
+    const puzzleId = encodeURIComponent(state.room.puzzleId || state.room.puzzle.id);
+    const payload = await getJson(`/api/leaderboard?puzzleId=${puzzleId}`);
+    state.leaderboardEntries = payload.entries || [];
+  } catch (error) {
+    setToast(error.message);
+    state.leaderboardEntries = [];
+  } finally {
+    state.leaderboardLoading = false;
+    renderGame();
+  }
 }
 
 function bindClueCardControls() {
@@ -900,6 +1092,8 @@ function bindMobileKeyboard() {
       const key = button.dataset.key;
       if (/^[A-Z]$/.test(key)) {
         updateCell(key);
+      } else if (/^\d$/.test(key)) {
+        // Number keypad is for navigation mode parity; puzzle entries remain letter-only.
       } else if (key === "Backspace") {
         const current = cellAt(state.active.row, state.active.col);
         if (current?.value) {
@@ -910,6 +1104,12 @@ function bindMobileKeyboard() {
         }
       } else if (key === "Enter") {
         toggleDirection();
+      } else if (key === "Number") {
+        state.keyboardMode = "numbers";
+        renderGame();
+      } else if (key === "Letters") {
+        state.keyboardMode = "letters";
+        renderGame();
       }
     });
   });
@@ -1103,6 +1303,7 @@ async function updateCell(value) {
   const cell = cellAt(state.active.row, state.active.col);
   if (!cell || cell.isBlack) return;
   const activeClue = clueById(state.active.clueId);
+  const clueId = state.active.clueId;
   if (activeClue?.solvedAt) {
     setToast("That clue is already solved.");
     return;
@@ -1116,17 +1317,30 @@ async function updateCell(value) {
   renderBoardOnly();
   if (value) moveBy(1);
   try {
-    await api("/api/cell", {
+    const payload = await api("/api/cell", {
       code: state.room.code,
       playerId: state.playerId,
       row: cell.row,
       col: cell.col,
-      clueId: state.active.clueId,
+      clueId,
       value,
     });
+    const solvedClue = allClues(payload.room).find((clue) => clue.id === clueId && clue.solvedAt);
+    if (value && solvedClue) {
+      state.room = payload.room;
+      goToNextClueFrom(clueId);
+    }
   } catch (error) {
     setToast(error.message);
   }
+}
+
+function goToNextClueFrom(clueId) {
+  const clues = activeClues();
+  if (!clues.length) return;
+  const currentIndex = clues.findIndex((clue) => clue.id === clueId);
+  const nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % clues.length;
+  activateClue(clues[nextIndex]);
 }
 
 async function postCursor() {
@@ -1150,6 +1364,7 @@ async function sendChat(event) {
   const text = input.value.trim();
   if (!text) return;
   state.preserveChatFocus = true;
+  state.chatDraft = "";
   input.value = "";
   focusChatInput();
   try {

@@ -6,6 +6,8 @@ const crypto = require("node:crypto");
 const PORT = Number(process.env.PORT || 3000);
 const PUBLIC_DIR = path.join(__dirname, "public");
 const PUZZLES_DIR = path.join(__dirname, "puzzles");
+const DATA_DIR = path.join(__dirname, "data");
+const LEADERBOARD_FILE = path.join(DATA_DIR, "leaderboards.json");
 
 const COLORS = ["#3B82F6", "#4ADE80", "#F59E0B", "#A855F7"];
 const AVATARS = [
@@ -256,6 +258,25 @@ function getPuzzleTemplate(puzzleId = "") {
 
 const rooms = new Map();
 
+function readLeaderboards() {
+  try {
+    if (!fs.existsSync(LEADERBOARD_FILE)) return {};
+    return JSON.parse(fs.readFileSync(LEADERBOARD_FILE, "utf8"));
+  } catch {
+    return {};
+  }
+}
+
+function writeLeaderboards(leaderboards) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(LEADERBOARD_FILE, JSON.stringify(leaderboards, null, 2));
+}
+
+function leaderboardForPuzzle(puzzleId) {
+  const leaderboards = readLeaderboards();
+  return [...(leaderboards[puzzleId] || [])].sort((a, b) => a.elapsedMs - b.elapsedMs);
+}
+
 function id(prefix = "") {
   return `${prefix}${crypto.randomBytes(4).toString("hex")}`;
 }
@@ -271,13 +292,14 @@ function clone(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-function createRoom(host, puzzleId = "") {
+function createRoom(host, puzzleId = "", teamName = "") {
   const puzzleTemplate = getPuzzleTemplate(puzzleId);
   const code = lobbyCode();
   const room = {
     id: id("room_"),
     code,
     hostId: host.id,
+    teamName: String(teamName || "").trim().slice(0, 40),
     puzzleId: puzzleTemplate.id,
     status: "lobby",
     createdAt: new Date().toISOString(),
@@ -288,6 +310,7 @@ function createRoom(host, puzzleId = "") {
     puzzle: clone(puzzleTemplate),
     startedAt: null,
     completedAt: null,
+    leaderboardRecorded: false,
     clients: new Set(),
   };
   addPlayer(room, host);
@@ -474,6 +497,7 @@ function recalculate(room, finalPlayerId = null) {
   if (allSolved && !room.completedAt) {
     room.completedAt = new Date().toISOString();
     room.status = "completed";
+    recordLeaderboardResult(room);
     room.activity.unshift({
       id: id("act_"),
       type: "GAME_COMPLETED",
@@ -492,6 +516,27 @@ function recalculate(room, finalPlayerId = null) {
       .filter((clue) => clue.solvedAt && !solvedBefore.has(clue.id))
       .map((clue) => clue.id),
   };
+}
+
+function recordLeaderboardResult(room) {
+  if (room.leaderboardRecorded || !room.startedAt || !room.completedAt) return;
+  const elapsedMs = new Date(room.completedAt).getTime() - new Date(room.startedAt).getTime();
+  if (!Number.isFinite(elapsedMs) || elapsedMs < 0) return;
+  const leaderboards = readLeaderboards();
+  const puzzleId = room.puzzleId || room.puzzle.id;
+  const entries = leaderboards[puzzleId] || [];
+  entries.push({
+    id: id("score_"),
+    teamName: room.teamName || "Untitled Team",
+    puzzleId,
+    puzzleTitle: room.puzzle.title,
+    elapsedMs,
+    completedAt: room.completedAt,
+    players: room.players.map((player) => player.username),
+  });
+  leaderboards[puzzleId] = entries.sort((a, b) => a.elapsedMs - b.elapsedMs).slice(0, 50);
+  writeLeaderboards(leaderboards);
+  room.leaderboardRecorded = true;
 }
 
 async function handleApi(req, res, pathname) {
@@ -517,14 +562,22 @@ async function handleApi(req, res, pathname) {
       return json(res, 200, getPuzzleTemplate(requested));
     }
 
+    if (req.method === "GET" && pathname === "/api/leaderboard") {
+      const puzzleId = new URL(req.url, `http://${req.headers.host}`).searchParams.get("puzzleId");
+      if (!puzzleId) throw new Error("Missing puzzleId");
+      return json(res, 200, { entries: leaderboardForPuzzle(puzzleId) });
+    }
+
     if (req.method === "POST" && pathname === "/api/lobby/create") {
       const body = await readJson(req);
+      const teamName = String(body.teamName || "").trim();
+      if (!teamName) throw new Error("Team name is required");
       const player = {
         id: body.playerId || id("player_"),
         username: body.username || "You",
         email: body.email || "",
       };
-      const room = createRoom(player, body.puzzleId);
+      const room = createRoom(player, body.puzzleId, teamName);
       return json(res, 200, { room: clientRoom(room), playerId: player.id });
     }
 
