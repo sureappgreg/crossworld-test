@@ -1,0 +1,36 @@
+TITLE: Small Puzzle Test
+AUTHOR: Greg
+
+GRID:
+#G#######
+#R#B#####
+HENRY##C#
+#G#I#C#O#
+##RACHELE
+###N#R#O#
+#####I#R#
+##ALYSSA#
+##L####D#
+#GIGI##O#
+
+
+
+
+ACROSS:
+
+3. Father of scrubs
+6. Mother of scrubs
+7. Queen Scrub
+8. Oliver's paternal grandmother, informally
+
+
+
+
+DOWN:
+
+1. Oliver's favorite uncle
+2. Husband of 2. Down
+4. Midwest state with over 600 sides
+5. King Scrub
+7. Wife of King Scrub
+
