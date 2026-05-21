@@ -646,10 +646,6 @@ function renderGame() {
             <button class="icon-button ${state.openLeaderboard ? "active-tool" : ""}" id="toggle-leaderboard" title="Leaderboard" aria-label="Leaderboard">${icon("trophy")}</button>
             <button class="icon-button ${state.unreadChat ? "has-unread" : ""}" id="toggle-chat-mobile" title="Chat" aria-label="Chat">${icon("chat")}${state.unreadChat ? '<span class="unread-dot"></span>' : ""}</button>
           </div>
-          <button class="icon-button desktop-tool ${state.openLeaderboard ? "active-tool" : ""}" id="toggle-leaderboard-desktop" type="button" title="Leaderboard" aria-label="Leaderboard">${icon("trophy")}</button>
-          <button class="icon-button desktop-tool" type="button" title="Help" aria-label="Help">${icon("help")}</button>
-          <button class="icon-button desktop-tool" type="button" title="Print" aria-label="Print">${icon("print")}</button>
-          <button class="icon-button desktop-tool" type="button" title="Settings" aria-label="Settings">${icon("settings")}</button>
         </div>
       </header>
       <section class="game-grid ${state.openClueList ? "clue-list-open" : ""}">
@@ -981,10 +977,13 @@ function bindGameEvents() {
     }
   });
   document.onkeydown = handleKeydown;
+  document.onpointerdown = closeToolbarPanelsFromOutside;
   bindClueControls();
   document.querySelector("#toggle-chat").addEventListener("click", () => {
-    if (window.matchMedia("(max-width: 1320px)").matches) state.openChat = !state.openChat;
-    state.collapsedChat = !state.collapsedChat;
+    const opening = state.collapsedChat || (compactLayout() && !state.openChat);
+    closeToolbarPanels(opening ? "chat" : "");
+    if (window.matchMedia("(max-width: 1320px)").matches) state.openChat = opening;
+    state.collapsedChat = !opening;
     if (!state.collapsedChat || state.openChat) state.unreadChat = 0;
     updateViewportVars();
     renderGame();
@@ -1006,27 +1005,54 @@ function bindGameEvents() {
   bindMobileKeyboard();
   document.querySelector("#back-button")?.addEventListener("click", leaveRoom);
   document.querySelector("#toggle-sidebar")?.addEventListener("click", () => {
-    state.openSidebar = !state.openSidebar;
+    const opening = !state.openSidebar;
+    closeToolbarPanels(opening ? "sidebar" : "");
+    state.openSidebar = opening;
     renderGame();
   });
   document.querySelector("#toggle-clue-list-mobile")?.addEventListener("click", () => {
-    state.openClueList = !state.openClueList;
+    const opening = !state.openClueList;
+    closeToolbarPanels(opening ? "clues" : "");
+    state.openClueList = opening;
     renderGame();
   });
   document.querySelector("#toggle-leaderboard")?.addEventListener("click", toggleLeaderboard);
-  document.querySelector("#toggle-leaderboard-desktop")?.addEventListener("click", toggleLeaderboard);
   document.querySelector("#close-leaderboard")?.addEventListener("click", () => {
-    state.openLeaderboard = false;
+    closeToolbarPanels();
     renderGame();
   });
   document.querySelector("#toggle-chat-mobile")?.addEventListener("click", () => {
-    state.openChat = !state.openChat;
-    state.collapsedChat = false;
+    const opening = !state.openChat;
+    closeToolbarPanels(opening ? "chat" : "");
+    state.openChat = opening;
+    state.collapsedChat = !opening;
     if (state.openChat) state.unreadChat = 0;
     updateViewportVars();
     renderGame();
     if (state.openChat) focusChatInput();
   });
+}
+
+function closeToolbarPanels(keep = "") {
+  if (keep !== "sidebar") state.openSidebar = false;
+  if (keep !== "clues") state.openClueList = false;
+  if (keep !== "leaderboard") state.openLeaderboard = false;
+  if (keep !== "chat") {
+    state.openChat = false;
+    state.collapsedChat = true;
+  }
+}
+
+function closeToolbarPanelsFromOutside(event) {
+  const target = event.target;
+  if (!target) return;
+  const insidePanel = target.closest(".sidebar.open, .clues-panel.open, .leaderboard-panel.open, .chat-panel.open, .chat-panel:not(.collapsed)");
+  const toolbarButton = target.closest("#toggle-sidebar, #toggle-clue-list-mobile, #toggle-leaderboard, #toggle-chat-mobile, #toggle-chat");
+  if (insidePanel || toolbarButton) return;
+  const hasOpenPanel = state.openSidebar || state.openClueList || state.openLeaderboard || state.openChat || !state.collapsedChat;
+  if (!hasOpenPanel) return;
+  closeToolbarPanels();
+  renderGame();
 }
 
 function bindClueControls() {
@@ -1035,8 +1061,10 @@ function bindClueControls() {
 }
 
 async function toggleLeaderboard() {
-  state.openLeaderboard = !state.openLeaderboard;
-  if (!state.openLeaderboard) {
+  const opening = !state.openLeaderboard;
+  closeToolbarPanels(opening ? "leaderboard" : "");
+  state.openLeaderboard = opening;
+  if (!opening) {
     renderGame();
     return;
   }
